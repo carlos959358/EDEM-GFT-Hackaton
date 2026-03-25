@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, Boolean, Date, ForeignKey
 from sqlalchemy.orm import declarative_base, relationship
+from datetime import datetime
 
 Base = declarative_base()
 
@@ -52,6 +53,7 @@ class Asistencia(Base):
     __tablename__ = 'asistencia'
     id_asistencia = Column(Integer, primary_key=True, autoincrement=True, index=True)
     id_alumno = Column(String, ForeignKey('alumnos.id_alumno'))
+    id_asignatura = Column(String, ForeignKey('asignaturas.id_asignatura'))
     fecha = Column(Date)
     presente = Column(Boolean)
 
