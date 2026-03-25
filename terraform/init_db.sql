@@ -1,102 +1,121 @@
--- Tablas Principales
-CREATE TABLE alumnos (
-    id_alumno VARCHAR PRIMARY KEY,
-    nombre VARCHAR,
-    apellido VARCHAR,
-    correo VARCHAR,
-    contrasena VARCHAR,
-    url_foto VARCHAR
-);
+// --- Tablas Principales (Entidades) ---
 
-CREATE TABLE profesores (
-    id_profesor VARCHAR PRIMARY KEY,
-    nombre VARCHAR,
-    apellido VARCHAR,
-    correo VARCHAR,
-    url_foto VARCHAR
-);
+Table alumnos {
+  id_alumno varchar [pk] 
+  nombre varchar
+  apellido varchar
+  correo varchar
+  contrasena varchar
+  url_foto varchar
+}
 
-CREATE TABLE personal_edem (
-    id_personal VARCHAR PRIMARY KEY,
-    nombre VARCHAR,
-    apellido VARCHAR,
-    correo VARCHAR,
-    rol VARCHAR,
-    url_foto VARCHAR
-);
+Table profesores {
+  id_profesor varchar [pk]
+  nombre varchar
+  apellido varchar
+  correo varchar
+  url_foto varchar
+}
 
-CREATE TABLE grupos (
-    id_grupo VARCHAR PRIMARY KEY,
-    nombre VARCHAR
-);
+Table personal_edem {
+  id_personal varchar [pk]
+  nombre varchar
+  apellido varchar
+  correo varchar
+  rol varchar
+  url_foto varchar
+}
 
-CREATE TABLE asignaturas (
-    id_asignatura VARCHAR PRIMARY KEY,
-    nombre VARCHAR
-);
+Table grupos {
+  id_grupo varchar [pk]
+  nombre varchar
+}
 
-CREATE TABLE ubicaciones (
-    id_ubicacion VARCHAR PRIMARY KEY,
-    descripcion TEXT,
-    planta INT,
-    aula VARCHAR
-);
+Table asignaturas {
+  id_asignatura varchar [pk]
+  nombre varchar
+}
 
--- El Motor del Calendario
-CREATE TABLE sesiones (
-    id_sesion SERIAL PRIMARY KEY,
-    fecha DATE,
-    hora TIME,
-    id_ubicacion VARCHAR REFERENCES ubicaciones(id_ubicacion),
-    id_asignatura VARCHAR REFERENCES asignaturas(id_asignatura),
-    id_profesor VARCHAR REFERENCES profesores(id_profesor),
-    descripcion TEXT
-);
+Table ubicaciones {
+  id_ubicacion varchar [pk]
+  descripcion varchar [null]
+  planta int
+  aula varchar
+}
 
--- Tablas de Relaciones
-CREATE TABLE rel_profesores_asignaturas (
-    id_profesor VARCHAR REFERENCES profesores(id_profesor),
-    id_asignatura VARCHAR REFERENCES asignaturas(id_asignatura),
-    PRIMARY KEY (id_profesor, id_asignatura)
-);
+// --- El Motor del Calendario ---
 
-CREATE TABLE rel_alumnos_grupos (
-    id_alumno VARCHAR REFERENCES alumnos(id_alumno),
-    id_grupo VARCHAR REFERENCES grupos(id_grupo),
-    PRIMARY KEY (id_alumno, id_grupo)
-);
+Table sesiones {
+  id_sesion int [pk, increment]
+  fecha date
+  hora_inicio time
+  hora_fin time
+  id_ubicacion varchar [ref: > ubicaciones.id_ubicacion]
+  id_asignatura varchar [ref: > asignaturas.id_asignatura]
+  id_profesor varchar [ref: > profesores.id_profesor]
+  descripcion varchar [null]
+}
 
-CREATE TABLE rel_asignaturas_grupos (
-    id_asignatura VARCHAR REFERENCES asignaturas(id_asignatura),
-    id_grupo VARCHAR REFERENCES grupos(id_grupo),
-    PRIMARY KEY (id_asignatura, id_grupo)
-);
+// --- Tablas de Relaciones (Cruces) ---
 
-CREATE TABLE rel_personal_grupos (
-    id_personal VARCHAR REFERENCES personal_edem(id_personal),
-    id_grupo VARCHAR REFERENCES grupos(id_grupo),
-    PRIMARY KEY (id_personal, id_grupo)
-);
+Table rel_profesores_asignaturas {
+  id_profesor varchar [ref: > profesores.id_profesor]
+  id_asignatura varchar [ref: > asignaturas.id_asignatura]
+  
+  indexes {
+    (id_profesor, id_asignatura) [pk]
+  }
+}
 
--- Funcionalidades Extra
-CREATE TABLE tareas (
-    id_tarea SERIAL PRIMARY KEY,
-    id_asignatura VARCHAR REFERENCES asignaturas(id_asignatura),
-    nombre VARCHAR,
-    descripcion TEXT
-);
+Table rel_alumnos_grupos {
+  id_alumno varchar [ref: > alumnos.id_alumno]
+  id_grupo varchar [ref: > grupos.id_grupo]
+  
+  indexes {
+    (id_alumno, id_grupo) [pk]
+  }
+}
 
-CREATE TABLE rel_alumno_tarea (
-    id_alumno VARCHAR REFERENCES alumnos(id_alumno),
-    id_tarea INT REFERENCES tareas(id_tarea),
-    nota NUMERIC(4,2),
-    PRIMARY KEY (id_alumno, id_tarea)
-);
+Table rel_asignaturas_grupos {
+  id_asignatura varchar [ref: > asignaturas.id_asignatura]
+  id_grupo varchar [ref: > grupos.id_grupo]
+  
+  indexes {
+    (id_asignatura, id_grupo) [pk]
+  }
+}
 
--- La nueva tabla de Asistencia (vinculada a la sesión)
-CREATE TABLE asistencia (
-    id_asistencia SERIAL PRIMARY KEY,
-    id_alumno VARCHAR REFERENCES alumnos(id_alumno),
-    id_sesion INT REFERENCES sesiones(id_sesion),
-    presente BOOLEAN
-);
+Table rel_personal_grupos {
+  id_personal varchar [ref: > personal_edem.id_personal]
+  id_grupo varchar [ref: > grupos.id_grupo]
+  
+  indexes {
+    (id_personal, id_grupo) [pk]
+  }
+}
+
+Table rel_alumno_tarea {
+  id_alumno varchar [ref: > alumnos.id_alumno]
+  id_tarea int [ref: > tareas.id_tarea]
+  nota float [null]
+  
+  indexes {
+    (id_alumno, id_tarea) [pk]
+  }
+}
+
+// --- Tablas de Funcionalidades Extra de la App ---
+
+Table asistencia {
+  id_asistencia int [pk, increment]
+  id_alumno varchar [ref: > alumnos.id_alumno]
+  id_sesion int [ref: > sesiones.id_sesion]
+  presente boolean
+}
+
+Table tareas {
+  id_tarea int [pk, increment]
+  id_asignatura varchar [ref: > asignaturas.id_asignatura]
+  nombre varchar
+  descripcion varchar
+}
