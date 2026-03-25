@@ -1,30 +1,38 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.pool import NullPool
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy import Column, String, DateTime
 import uuid
 from datetime import datetime, date
 from typing import List
-
+from dotenv import load_dotenv
 
 # Importamos los modelos de la BBDD que creamos antes
 # Asegúrate de tenerlos en un archivo llamado models.py
-from models import Alumno, Profesor, PersonalEdem, Base 
+from models import Alumno, Profesor, PersonalEdem, Base
+from config import settings
+
+# Cargamos las variables de entorno desde el archivo .env
+load_dotenv()
 
 # ==========================================
 # 1. CONEXIÓN A LA BASE DE DATOS
 # ==========================================
-# Reemplaza esta URL con la tuya de GCP (Cloud SQL) o usa SQLite para local
-SQLALCHEMY_DATABASE_URL = "sqlite:///./universidad.db"
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-# Si vas a usar SQLite en local temporalmente usa: "sqlite:///./universidad.db"
+# La URL se genera automáticamente desde las variables de entorno en config.py
+# Soporta PostgreSQL en Cloud SQL y localhost
+SQLALCHEMY_DATABASE_URL = settings.database_url
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
-# NOTA: Si usas SQLite añade al create_engine: connect_args={"check_same_thread": False}
+# Configuración del engine optimizado para Cloud Run + Cloud SQL
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    pool_pre_ping=True,  # Verifica la conexión antes de usar
+    echo=False if settings.ENVIRONMENT == "production" else True,  # SQL logging en desarrollo
+    pool_recycle=3600,  # Recicla conexiones cada hora (importante para Cloud SQL)
+    poolclass=NullPool if settings.ENVIRONMENT == "production" else None,  # Sin pool en producción
+)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
