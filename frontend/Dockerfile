@@ -4,8 +4,8 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copiar solo los archivos de dependencias primero (aprovecha la caché de Docker)
-COPY package*.json ./
-RUN npm ci
+COPY package.json ./
+RUN npm install
 
 # Copiar el resto del código y construir la aplicación
 COPY . .
