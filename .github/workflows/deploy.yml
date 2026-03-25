@@ -6,9 +6,9 @@ on:
       - main
 
 env:
-  PROJECT_ID: spa-datajuniorsprogram-sdb-001
+  PROJECT_ID: edem-hackathon-2026
   REGION: europe-west1
-  REGISTRY: europe-west1-docker.pkg.dev/spa-datajuniorsprogram-sdb-001/gft-hackaton
+  REGISTRY: europe-west1-docker.pkg.dev/edem-hackathon-2026/gft-hackaton
 
 jobs:
   deploy-backend:
