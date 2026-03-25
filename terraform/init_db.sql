@@ -1,0 +1,102 @@
+-- Tablas Principales
+CREATE TABLE alumnos (
+    id_alumno VARCHAR PRIMARY KEY,
+    nombre VARCHAR,
+    apellido VARCHAR,
+    correo VARCHAR,
+    contrasena VARCHAR,
+    url_foto VARCHAR
+);
+
+CREATE TABLE profesores (
+    id_profesor VARCHAR PRIMARY KEY,
+    nombre VARCHAR,
+    apellido VARCHAR,
+    correo VARCHAR,
+    url_foto VARCHAR
+);
+
+CREATE TABLE personal_edem (
+    id_personal VARCHAR PRIMARY KEY,
+    nombre VARCHAR,
+    apellido VARCHAR,
+    correo VARCHAR,
+    rol VARCHAR,
+    url_foto VARCHAR
+);
+
+CREATE TABLE grupos (
+    id_grupo VARCHAR PRIMARY KEY,
+    nombre VARCHAR
+);
+
+CREATE TABLE asignaturas (
+    id_asignatura VARCHAR PRIMARY KEY,
+    nombre VARCHAR
+);
+
+CREATE TABLE ubicaciones (
+    id_ubicacion VARCHAR PRIMARY KEY,
+    descripcion TEXT,
+    planta INT,
+    aula VARCHAR
+);
+
+-- El Motor del Calendario
+CREATE TABLE sesiones (
+    id_sesion SERIAL PRIMARY KEY,
+    fecha DATE,
+    hora TIME,
+    id_ubicacion VARCHAR REFERENCES ubicaciones(id_ubicacion),
+    id_asignatura VARCHAR REFERENCES asignaturas(id_asignatura),
+    id_profesor VARCHAR REFERENCES profesores(id_profesor),
+    descripcion TEXT
+);
+
+-- Tablas de Relaciones
+CREATE TABLE rel_profesores_asignaturas (
+    id_profesor VARCHAR REFERENCES profesores(id_profesor),
+    id_asignatura VARCHAR REFERENCES asignaturas(id_asignatura),
+    PRIMARY KEY (id_profesor, id_asignatura)
+);
+
+CREATE TABLE rel_alumnos_grupos (
+    id_alumno VARCHAR REFERENCES alumnos(id_alumno),
+    id_grupo VARCHAR REFERENCES grupos(id_grupo),
+    PRIMARY KEY (id_alumno, id_grupo)
+);
+
+CREATE TABLE rel_asignaturas_grupos (
+    id_asignatura VARCHAR REFERENCES asignaturas(id_asignatura),
+    id_grupo VARCHAR REFERENCES grupos(id_grupo),
+    PRIMARY KEY (id_asignatura, id_grupo)
+);
+
+CREATE TABLE rel_personal_grupos (
+    id_personal VARCHAR REFERENCES personal_edem(id_personal),
+    id_grupo VARCHAR REFERENCES grupos(id_grupo),
+    PRIMARY KEY (id_personal, id_grupo)
+);
+
+-- Funcionalidades Extra
+CREATE TABLE tareas (
+    id_tarea SERIAL PRIMARY KEY,
+    id_asignatura VARCHAR REFERENCES asignaturas(id_asignatura),
+    nombre VARCHAR,
+    descripcion TEXT
+);
+
+CREATE TABLE rel_alumno_tarea (
+    id_alumno VARCHAR REFERENCES alumnos(id_alumno),
+    id_tarea INT REFERENCES tareas(id_tarea),
+    nota NUMERIC(4,2),
+    PRIMARY KEY (id_alumno, id_tarea)
+);
+
+-- La nueva tabla de Asistencia (vinculada a la sesión)
+CREATE TABLE asistencia (
+    id_asistencia SERIAL PRIMARY KEY,
+    id_alumno VARCHAR REFERENCES alumnos(id_alumno),
+    id_sesion INT REFERENCES sesiones(id_sesion),
+    presente BOOLEAN
+);
