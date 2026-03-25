@@ -69,7 +69,7 @@ export function ProfileScreen() {
     <div className="min-h-screen bg-[#f5f5f5] pb-20">
       {/* ── Header ── */}
       <div className="bg-[#008899] px-6 pt-12 pb-28 rounded-b-3xl relative">
-        <h1 className="text-white text-xl mb-1" style={{ fontWeight: 300 }}>EDEM</h1>
+        <h1 className="text-white text-xl mb-1" style={{ fontWeight: 300, fontFamily: 'Didot, Bodoni, serif' }}>EDEM</h1>
         <p className="text-white text-xs opacity-80 mb-6">EDEM STUDENT HUB</p>
 
         {/* Avatar */}

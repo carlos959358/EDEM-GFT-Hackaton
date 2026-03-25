@@ -17,7 +17,7 @@ export function LoginScreen() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-12">
-          <h1 className="text-5xl text-[#008899] mb-2" style={{ fontWeight: 300 }}>EDEM</h1>
+          <h1 className="text-5xl text-[#008899] mb-2" style={{ fontWeight: 300, fontFamily: 'Didot, Bodoni, serif' }}>EDEM</h1>
           <p className="text-sm text-gray-600">EDEM STUDENT HUB</p>
         </div>
 
