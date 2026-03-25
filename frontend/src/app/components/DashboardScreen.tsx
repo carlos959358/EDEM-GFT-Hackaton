@@ -13,7 +13,7 @@ export function DashboardScreen() {
             <h1 className="text-white text-2xl mb-1" style={{ fontWeight: 300 }}>EDEM</h1>
             <p className="text-white text-xs opacity-90">EDEM STUDENT HUB</p>
           </div>
-          <Bell className="text-white" size={24} />
+          <Bell className="text-white" size={24} onClick={() => navigate('/notifications')}/>
         </div>
       </div>
 
@@ -54,44 +54,6 @@ export function DashboardScreen() {
           >
             Buscar Sala
           </button>
-        </div>
-
-        {/* Chat con... */}
-        <div 
-          className="bg-white rounded-xl p-4 mb-4 shadow-sm cursor-pointer"
-          onClick={() => navigate('/chat')}
-        >
-          <h3 className="text-[#008899] mb-2" style={{ fontWeight: 600 }}>CHAT CON...</h3>
-          <p className="text-gray-600 text-sm mb-2">Dr. L. García (MA)</p>
-          <p className="text-gray-500 text-xs">¿A qué hora nos vemos el lunes?</p>
-        </div>
-
-        {/* Próximos Eventos */}
-        <div className="bg-white rounded-xl p-4 mb-4 shadow-sm">
-          <h3 className="text-[#008899] mb-3" style={{ fontWeight: 600 }}>PRÓXIMOS EVENTOS</h3>
-          <div className="space-y-2">
-            <div className="flex items-center text-sm text-gray-600">
-              <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
-              Jue 9-Abr (9h)
-            </div>
-          </div>
-        </div>
-
-        {/* Validar Clases */}
-        <div className="bg-white rounded-xl p-4 mb-4 shadow-sm">
-          <h3 className="text-[#008899] mb-2" style={{ fontWeight: 600 }}>VALIDAR CLASES</h3>
-          <p className="text-gray-600 text-sm">Clases no validadas</p>
-        </div>
-
-        {/* Aula Inmersiva */}
-        <div className="bg-gradient-to-br from-blue-900 to-blue-700 rounded-xl p-4 mb-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="bg-white/20 rounded-full p-2">
-              <div className="w-6 h-6 bg-white/40 rounded"></div>
-            </div>
-            <h3 className="text-white" style={{ fontWeight: 600 }}>AULA INMERSIVA</h3>
-          </div>
-          <p className="text-white text-xs opacity-90">Entra en la experiencia</p>
         </div>
 
         {/* Notas & Asistencia */}
