@@ -1,4 +1,4 @@
-import { Home, Calendar, MessageSquare, User, Settings } from 'lucide-react';
+import { Home, Calendar, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router';
 
 export function BottomNav() {
@@ -8,9 +8,7 @@ export function BottomNav() {
   const navItems = [
     { icon: Home, path: '/dashboard', label: 'Inicio' },
     { icon: Calendar, path: '/calendar', label: 'Calendario' },
-    { icon: MessageSquare, path: '/tasks', label: 'Tareas' },
     { icon: User, path: '/profile', label: 'Perfil' },
-    { icon: Settings, path: '/settings', label: 'Ajustes' },
   ];
 
   // Don't show on login page
