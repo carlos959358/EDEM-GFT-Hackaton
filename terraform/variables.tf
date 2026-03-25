@@ -16,6 +16,16 @@ variable "credentials_file" {
   default     = "../spa-datajuniorsprogram-sdb-001-899009cc32ac.json"
 }
 
+variable "db_user" {
+  description = "Usuario administrador de la base de datos"
+  type        = string
+}
+
+variable "db_password" {
+  description = "Contraseña del administrador de la base de datos"
+  type        = string
+  sensitive   = true
+}
 variable "service_name" {
   description = "Nombre del recurso en Cloud Run"
   type        = string
