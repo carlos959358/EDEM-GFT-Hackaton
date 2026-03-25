@@ -2,9 +2,8 @@ terraform {
   required_version = ">= 1.0"
 
   backend "gcs" {
-    bucket      = "gft-hackaton-tfstate"
-    prefix      = "terraform/state"
-    credentials = "../spa-datajuniorsprogram-sdb-001-899009cc32ac.json"
+    bucket = "gft-hackaton-tfstate-26"
+    prefix = "terraform/state"
   }
 
   required_providers {
@@ -16,7 +15,6 @@ terraform {
 }
 
 provider "google" {
-  project     = var.project_id
-  region      = var.region
-  credentials = file(var.credentials_file)
+  project = var.project_id
+  region  = var.region
 }
