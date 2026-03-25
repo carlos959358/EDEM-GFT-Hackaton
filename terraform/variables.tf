@@ -20,3 +20,9 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
+
+variable "firestore_location" {
+  description = "Firestore database location"
+  type        = string
+  default     = "europe-west1"
+}
