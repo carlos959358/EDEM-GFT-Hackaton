@@ -9,3 +9,14 @@ variable "region" {
   type        = string
   default     = "europe-west1"
 }
+
+variable "db_user" {
+  description = "Usuario administrador de la base de datos"
+  type        = string
+}
+
+variable "db_password" {
+  description = "Contraseña del administrador de la base de datos"
+  type        = string
+  sensitive   = true
+}
