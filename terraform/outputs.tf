@@ -17,3 +17,23 @@ output "frontend_url" {
   description = "Frontend Cloud Run URL"
   value       = google_cloud_run_v2_service.frontend.uri
 }
+
+output "database_connection" {
+  description = "Cloud SQL connection name"
+  value       = google_sql_database_instance.edem_db_instance.connection_name
+}
+
+output "database_ip" {
+  description = "Cloud SQL public IP"
+  value       = google_sql_database_instance.edem_db_instance.public_ip_address
+}
+
+output "database_name" {
+  description = "Database name"
+  value       = google_sql_database.edem_database.name
+}
+
+output "service_account_email" {
+  description = "Cloud Run service account email"
+  value       = google_service_account.cloud_run_sa.email
+}

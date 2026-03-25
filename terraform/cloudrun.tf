@@ -4,7 +4,7 @@ resource "google_service_account" "cloud_run_sa" {
 }
 
 resource "google_cloud_run_v2_service" "frontend" {
-  name     = "gft-hackaton-frontend"
+  name     = "edem-gft-hackaton"
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
 
