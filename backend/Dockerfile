@@ -21,3 +21,4 @@ EXPOSE 8080
 # 7. Comando para arrancar el servidor web Uvicorn
 # Usamos ${PORT:-8080} para que GCP pueda inyectar dinámicamente el puerto que necesite
 CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+

@@ -1,0 +1,413 @@
+import { useState } from 'react';
+import { ChevronLeft, BookOpen, FileText, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router';
+
+type ViewMode = 'semana' | 'jus' | 'dia' | 'mes';
+type EventType = 'clase' | 'entrega' | 'examen';
+
+interface CalEvent {
+  id: number;
+  type: EventType;
+  subject: string;
+  day: number; // 0=LUN, 1=MAR, 2=MIÉ, 3=JUE, 4=VIE, 5=SÁB
+  startHour: number;
+  endHour: number;
+}
+
+const HOUR_HEIGHT = 56;
+const START_HOUR = 8;
+
+const EVENT_STYLES: Record<EventType, { bg: string; text: string; dot: string; border: string }> = {
+  clase:   { bg: 'bg-blue-500',  text: 'text-white', dot: 'bg-blue-500',  border: 'border-blue-600' },
+  entrega: { bg: 'bg-amber-400', text: 'text-white', dot: 'bg-amber-400', border: 'border-amber-500' },
+  examen:  { bg: 'bg-red-500',   text: 'text-white', dot: 'bg-red-500',   border: 'border-red-600'  },
+};
+
+const weekDays = [
+  { short: 'LUN', date: 23, label: 'Lunes 23' },
+  { short: 'MAR', date: 24, label: 'Martes 24' },
+  { short: 'MIÉ', date: 25, label: 'Miércoles 25' },
+  { short: 'JUE', date: 26, label: 'Jueves 26' },
+  { short: 'VIE', date: 27, label: 'Viernes 27' },
+  { short: 'SÁB', date: 28, label: 'Sábado 28' },
+];
+
+const allEvents: CalEvent[] = [
+  // Lunes 23
+  { id: 1,  type: 'clase',   subject: 'Big Data',             day: 0, startHour: 10,   endHour: 12   },
+  { id: 2,  type: 'clase',   subject: 'Análisis de Datos',    day: 0, startHour: 16,   endHour: 18   },
+  // Martes 24
+  { id: 3,  type: 'clase',   subject: 'Marketing Digital',    day: 1, startHour: 9,    endHour: 11   },
+  { id: 4,  type: 'clase',   subject: 'Finanzas',             day: 1, startHour: 14,   endHour: 16   },
+  // Miércoles 25 (hoy)
+  { id: 5,  type: 'clase',   subject: 'Estrategia Empr.',     day: 2, startHour: 10,   endHour: 12   },
+  { id: 6,  type: 'entrega', subject: 'Entrega: Proy. Big Data', day: 2, startHour: 13, endHour: 13.5 },
+  // Jueves 26
+  { id: 7,  type: 'clase',   subject: 'Big Data',             day: 3, startHour: 9,    endHour: 11   },
+  { id: 8,  type: 'examen',  subject: 'Examen Finanzas',      day: 3, startHour: 12,   endHour: 14   },
+  { id: 9,  type: 'clase',   subject: 'Coaching & Liderazgo', day: 3, startHour: 16,   endHour: 18   },
+  // Viernes 27
+  { id: 10, type: 'clase',   subject: 'Marketing Digital',    day: 4, startHour: 10,   endHour: 12   },
+  { id: 11, type: 'entrega', subject: 'Entrega: Informe Mkt', day: 4, startHour: 13,   endHour: 13.5 },
+  // Sábado 28
+  { id: 12, type: 'clase',   subject: 'Finanzas',             day: 5, startHour: 10,   endHour: 12   },
+];
+
+// March 2026: March 1 = Sunday → Monday-first grid: 6 leading nulls
+const marchDays: (number | null)[] = [
+  null, null, null, null, null, null, 1,
+  2,  3,  4,  5,  6,  7,  8,
+  9,  10, 11, 12, 13, 14, 15,
+  16, 17, 18, 19, 20, 21, 22,
+  23, 24, 25, 26, 27, 28, 29,
+  30, 31, null, null, null, null, null,
+];
+
+const monthEventMap: Record<number, EventType[]> = {
+  2:  ['clase'],
+  3:  ['clase'],
+  4:  ['clase'],
+  5:  ['clase', 'examen'],
+  6:  ['clase'],
+  7:  ['clase'],
+  9:  ['clase'],
+  10: ['clase'],
+  11: ['clase', 'entrega'],
+  12: ['clase', 'examen'],
+  13: ['clase'],
+  14: ['clase'],
+  16: ['clase'],
+  17: ['clase'],
+  18: ['clase'],
+  19: ['clase'],
+  20: ['clase', 'examen'],
+  21: ['clase'],
+  23: ['clase'],
+  24: ['clase'],
+  25: ['clase', 'entrega'],
+  26: ['clase', 'examen'],
+  27: ['clase', 'entrega'],
+  28: ['clase'],
+  30: ['clase'],
+  31: ['clase'],
+};
+
+const formatHour = (h: number): string => {
+  const hrs = Math.floor(h);
+  const mins = String(Math.round((h - hrs) * 60)).padStart(2, '0');
+  return `${hrs}:${mins}`;
+};
+
+const VIEW_BUTTONS: { mode: ViewMode; label: string }[] = [
+  { mode: 'semana', label: 'L - V' },
+  { mode: 'jus',    label: 'J - S' },
+  { mode: 'dia',    label: 'Día'   },
+  { mode: 'mes',    label: 'Mes'   },
+];
+
+const EVENT_ICONS: Record<EventType, React.ElementType> = {
+  clase:   BookOpen,
+  entrega: FileText,
+  examen:  AlertCircle,
+};
+
+export function CalendarScreen() {
+  const navigate = useNavigate();
+  const [viewMode, setViewMode] = useState<ViewMode>('semana');
+  const [selectedDayIdx, setSelectedDayIdx] = useState(2); // MIÉ 25 (hoy)
+
+  const hours = Array.from({ length: 12 }, (_, i) => i + START_HOUR); // 8–19
+
+  // Which days to display in time-grid views
+  const getDisplayDays = () => {
+    if (viewMode === 'semana') return weekDays.slice(0, 5);
+    if (viewMode === 'jus')    return weekDays.slice(3, 6);
+    if (viewMode === 'dia')    return [weekDays[selectedDayIdx]];
+    return [];
+  };
+
+  // Which events to show
+  const getDisplayEvents = (): CalEvent[] => {
+    if (viewMode === 'semana') return allEvents.filter(e => e.day <= 4);
+    if (viewMode === 'jus')    return allEvents.filter(e => e.day >= 3);
+    if (viewMode === 'dia')    return allEvents.filter(e => e.day === selectedDayIdx);
+    return [];
+  };
+
+  // Map event.day → display column index
+  const getDisplayColIndex = (event: CalEvent): number => {
+    if (viewMode === 'semana') return event.day;
+    if (viewMode === 'jus')    return event.day - 3;
+    return 0;
+  };
+
+  const displayDays   = getDisplayDays();
+  const displayEvents = getDisplayEvents();
+  const totalCols     = displayDays.length;
+
+  const gridTitle = () => {
+    if (viewMode === 'mes')    return 'MARZO 2026';
+    if (viewMode === 'dia')    return weekDays[selectedDayIdx].label.toUpperCase() + ' · MAR 2026';
+    if (viewMode === 'semana') return 'SEMANA 23–27 MAR 2026';
+    return 'JUE–SÁB 26–28 MAR 2026';
+  };
+
+  return (
+    <div className="min-h-screen bg-[#008899] pb-20 flex flex-col">
+      {/* ── Header ── */}
+      <div className="px-5 pt-12 pb-4 flex-shrink-0">
+        <div className="flex items-center gap-3 mb-4">
+          <button onClick={() => navigate(-1)} className="p-1">
+            <ChevronLeft className="text-white" size={24} />
+          </button>
+          <div>
+            <h1 className="text-white text-xl" style={{ fontWeight: 300, fontFamily: 'Didot, Bodoni, serif' }}>EDEM</h1>
+            <p className="text-white text-xs opacity-80">EDEM STUDENT HUB</p>
+          </div>
+        </div>
+
+        {/* View mode toggle */}
+        <div className="flex gap-1.5 mb-3">
+          {VIEW_BUTTONS.map(({ mode, label }) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`flex-1 py-2 rounded-xl text-sm transition-all ${
+                viewMode === mode
+                  ? 'bg-white text-[#008899]'
+                  : 'bg-white/20 text-white'
+              }`}
+              style={{ fontWeight: viewMode === mode ? 700 : 400 }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Legend */}
+        <div className="flex gap-5">
+          {(['clase', 'entrega', 'examen'] as EventType[]).map(type => {
+            const Icon = EVENT_ICONS[type];
+            return (
+              <div key={type} className="flex items-center gap-1.5">
+                <div className={`w-2 h-2 rounded-full ${EVENT_STYLES[type].dot}`} />
+                <span className="text-white text-xs opacity-80 capitalize">{type}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Calendar Body ── */}
+      <div className="bg-white rounded-t-3xl flex-1 overflow-hidden flex flex-col">
+        {/* Title row */}
+        <div className="px-4 pt-4 pb-2 flex-shrink-0">
+          <p className="text-[#008899] text-sm" style={{ fontWeight: 700 }}>{gridTitle()}</p>
+        </div>
+
+        {/* ── MONTHLY VIEW ── */}
+        {viewMode === 'mes' && (
+          <div className="px-4 pb-4">
+            <div className="grid grid-cols-7 mb-1">
+              {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d, i) => (
+                <div key={i} className="text-center text-xs text-gray-400 py-1">{d}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-y-1">
+              {marchDays.map((day, i) => (
+                <div key={i} className="flex flex-col items-center py-0.5">
+                  {day !== null ? (
+                    <>
+                      <div
+                        className={`w-7 h-7 flex items-center justify-center rounded-full text-xs ${
+                          day === 25
+                            ? 'bg-[#008899] text-white'
+                            : 'text-gray-800'
+                        }`}
+                        style={{ fontWeight: day === 25 ? 700 : 400 }}
+                      >
+                        {day}
+                      </div>
+                      <div className="flex gap-0.5 mt-0.5">
+                        {(monthEventMap[day] ?? []).map((type, j) => (
+                          <div
+                            key={j}
+                            className={`w-1.5 h-1.5 rounded-full ${EVENT_STYLES[type].dot}`}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-7 h-7" />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Event list for the month */}
+            <div className="mt-5 space-y-2">
+              <p className="text-xs text-gray-500 mb-2" style={{ fontWeight: 600 }}>PRÓXIMAS FECHAS CLAVE</p>
+              {[
+                { date: '25 Mar', type: 'entrega' as EventType, text: 'Entrega Proyecto Big Data' },
+                { date: '26 Mar', type: 'examen'  as EventType, text: 'Examen Finanzas' },
+                { date: '27 Mar', type: 'entrega' as EventType, text: 'Entrega Informe Marketing' },
+                { date: '5 Abr',  type: 'examen'  as EventType, text: 'Examen Marketing Digital' },
+                { date: '12 Abr', type: 'entrega' as EventType, text: 'Entrega Análisis de Datos' },
+              ].map((item, i) => {
+                const Icon = EVENT_ICONS[item.type];
+                return (
+                  <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-2">
+                    <div className={`p-1.5 rounded-lg ${EVENT_STYLES[item.type].bg}`}>
+                      <Icon size={14} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-gray-800 text-sm" style={{ fontWeight: 500 }}>{item.text}</p>
+                    </div>
+                    <span className="text-xs text-gray-400">{item.date}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── DAY SELECTOR (only for "Día" mode) ── */}
+        {viewMode === 'dia' && (
+          <div className="px-4 flex-shrink-0">
+            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+              {weekDays.map((day, i) => (
+                <button
+                  key={i}
+                  onClick={() => setSelectedDayIdx(i)}
+                  className={`flex-shrink-0 flex flex-col items-center px-3 py-1.5 rounded-xl transition-all ${
+                    selectedDayIdx === i
+                      ? 'bg-[#008899] text-white'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  <span className="text-xs">{day.short}</span>
+                  <span className="text-sm" style={{ fontWeight: 700 }}>{day.date}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── TIME GRID (semana, jus, dia) ── */}
+        {viewMode !== 'mes' && (
+          <div className="flex flex-col flex-1 overflow-hidden">
+            {/* Day headers */}
+            {viewMode !== 'dia' && (
+              <div
+                className="flex flex-shrink-0 border-b border-gray-100 px-4 py-2"
+                style={{ paddingLeft: '3.5rem' }}
+              >
+                {displayDays.map((day, i) => (
+                  <div
+                    key={i}
+                    className="text-center"
+                    style={{ width: `${100 / totalCols}%` }}
+                  >
+                    <p className="text-xs text-gray-400">{day.short}</p>
+                    <div
+                      className={`w-7 h-7 mx-auto flex items-center justify-center rounded-full text-sm ${
+                        day.date === 25
+                          ? 'bg-[#008899] text-white'
+                          : 'text-gray-700'
+                      }`}
+                      style={{ fontWeight: day.date === 25 ? 700 : 400 }}
+                    >
+                      {day.date}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Scrollable grid */}
+            <div className="overflow-y-auto flex-1">
+              <div className="flex px-2 pb-4">
+                {/* Hours column */}
+                <div className="flex-shrink-0" style={{ width: '3rem' }}>
+                  {hours.map((h, i) => (
+                    <div
+                      key={i}
+                      className="flex items-start justify-end pr-2 pt-0.5"
+                      style={{ height: `${HOUR_HEIGHT}px` }}
+                    >
+                      <span className="text-xs text-gray-400">{`${h}:00`}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Events area */}
+                <div
+                  className="flex-1 relative"
+                  style={{ height: `${hours.length * HOUR_HEIGHT}px` }}
+                >
+                  {/* Background: hour lines */}
+                  {hours.map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute w-full border-t border-gray-100"
+                      style={{ top: `${i * HOUR_HEIGHT}px` }}
+                    />
+                  ))}
+
+                  {/* Background: column separators */}
+                  {displayDays.map((_, i) => i > 0 && (
+                    <div
+                      key={i}
+                      className="absolute top-0 bottom-0 border-l border-gray-100"
+                      style={{ left: `${(i / totalCols) * 100}%` }}
+                    />
+                  ))}
+
+                  {/* Events */}
+                  {displayEvents.map(event => {
+                    const colIdx  = getDisplayColIndex(event);
+                    const colW    = 100 / totalCols;
+                    const top     = (event.startHour - START_HOUR) * HOUR_HEIGHT;
+                    const height  = Math.max((event.endHour - event.startHour) * HOUR_HEIGHT - 3, 22);
+                    const Icon    = EVENT_ICONS[event.type];
+                    const styles  = EVENT_STYLES[event.type];
+
+                    return (
+                      <div
+                        key={event.id}
+                        className={`absolute rounded-lg px-1.5 py-1 overflow-hidden ${styles.bg} ${styles.text}`}
+                        style={{
+                          top:    `${top + 1}px`,
+                          left:   `calc(${colIdx * colW}% + 2px)`,
+                          width:  `calc(${colW}% - 4px)`,
+                          height: `${height}px`,
+                        }}
+                      >
+                        <div className="flex items-start gap-1">
+                          <Icon size={10} className="mt-0.5 flex-shrink-0 opacity-90" />
+                          <div className="min-w-0">
+                            <p
+                              className="text-xs truncate leading-tight"
+                              style={{ fontWeight: 700 }}
+                            >
+                              {event.subject}
+                            </p>
+                            {height > 32 && (
+                              <p className="text-xs opacity-80 leading-tight">
+                                {formatHour(event.startHour)}–{formatHour(event.endHour)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
