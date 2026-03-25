@@ -1,5 +1,11 @@
-import { ChevronLeft, TrendingUp, Award, BookOpen } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronLeft, TrendingUp, Award, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router';
+
+interface GradeDetail {
+  name: string;
+  grade: number;
+}
 
 interface Subject {
   name: string;
@@ -7,15 +13,16 @@ interface Subject {
   grade: number;
   credits: number;
   period: string;
+  details: GradeDetail[];
 }
 
 const subjects: Subject[] = [
-  { name: 'Big Data & Analytics',    code: 'BDA-301', grade: 8.5, credits: 6, period: 'Q1' },
-  { name: 'Marketing Digital',       code: 'MKT-201', grade: 7.2, credits: 5, period: 'Q1' },
-  { name: 'Finanzas Corporativas',   code: 'FIN-302', grade: 9.0, credits: 6, period: 'Q1' },
-  { name: 'Estrategia Empresarial',  code: 'EST-401', grade: 6.8, credits: 5, period: 'Q2' },
-  { name: 'Análisis de Datos',       code: 'ADA-303', grade: 8.0, credits: 6, period: 'Q2' },
-  { name: 'Coaching y Liderazgo',    code: 'COA-201', grade: 7.5, credits: 4, period: 'Q2' },
+  { name: 'Big Data & Analytics',    code: 'BDA-301', grade: 8.5, credits: 6, period: 'Q1', details: [{ name: 'Práctica 1', grade: 8.0 }, { name: 'Examen Final', grade: 9.0 }] },
+  { name: 'Marketing Digital',       code: 'MKT-201', grade: 7.2, credits: 5, period: 'Q1', details: [{ name: 'Entregable', grade: 7.5 }, { name: 'Examen Final', grade: 7.0 }] },
+  { name: 'Finanzas Corporativas',   code: 'FIN-302', grade: 9.0, credits: 6, period: 'Q1', details: [{ name: 'Caso Práctico', grade: 9.5 }, { name: 'Examen', grade: 8.5 }] },
+  { name: 'Estrategia Empresarial',  code: 'EST-401', grade: 6.8, credits: 5, period: 'Q2', details: [{ name: 'Presentación', grade: 7.0 }, { name: 'Examen', grade: 6.6 }] },
+  { name: 'Análisis de Datos',       code: 'ADA-303', grade: 8.0, credits: 6, period: 'Q2', details: [{ name: 'Práctica R', grade: 8.5 }, { name: 'Proyecto Final', grade: 7.5 }] },
+  { name: 'Coaching y Liderazgo',    code: 'COA-201', grade: 7.5, credits: 4, period: 'Q2', details: [{ name: 'Ensayo', grade: 8.0 }, { name: 'Roleplay', grade: 7.0 }] },
 ];
 
 const average = subjects.reduce((acc, s) => acc + s.grade, 0) / subjects.length;
@@ -28,16 +35,9 @@ const getGradeLabel = (g: number) => {
   return              { label: 'Suspenso',        color: 'text-red-600',    bg: 'bg-red-50'    };
 };
 
-const getBarColor = (g: number) => {
-  if (g >= 9)  return 'bg-purple-500';
-  if (g >= 7)  return 'bg-blue-500';
-  if (g >= 6)  return 'bg-green-500';
-  if (g >= 5)  return 'bg-amber-500';
-  return 'bg-red-500';
-};
-
 export function GradesScreen() {
   const navigate = useNavigate();
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const { label: avgLabel, color: avgColor, bg: avgBg } = getGradeLabel(average);
 
   return (
@@ -49,7 +49,7 @@ export function GradesScreen() {
             <ChevronLeft className="text-white" size={24} />
           </button>
           <div>
-            <h1 className="text-white text-xl" style={{ fontWeight: 300 }}>EDEM</h1>
+            <h1 className="text-white text-xl" style={{ fontWeight: 300, fontFamily: 'Didot, Bodoni, serif' }}>EDEM</h1>
             <p className="text-white text-xs opacity-80">EDEM STUDENT HUB</p>
           </div>
         </div>
@@ -81,12 +81,15 @@ export function GradesScreen() {
         <div className="space-y-3">
           {subjects.map((subject, i) => {
             const { label, color, bg } = getGradeLabel(subject.grade);
-            const barColor = getBarColor(subject.grade);
-            const pct = (subject.grade / 10) * 100;
+            const isExpanded = expandedIndex === i;
 
             return (
-              <div key={i} className="bg-gray-50 rounded-2xl p-4">
-                <div className="flex items-start justify-between mb-2">
+              <div 
+                key={i} 
+                className="bg-gray-50 rounded-2xl p-4 cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={() => setExpandedIndex(isExpanded ? null : i)}
+              >
+                <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0 mr-3">
                     <p className="text-gray-800 text-sm truncate" style={{ fontWeight: 600 }}>
                       {subject.name}
@@ -99,23 +102,30 @@ export function GradesScreen() {
                       <span className="text-xs text-gray-400">{subject.period}</span>
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-gray-800 text-lg" style={{ fontWeight: 800 }}>
-                      {subject.grade.toFixed(1)}
-                    </p>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${bg} ${color}`} style={{ fontWeight: 600 }}>
-                      {label}
-                    </span>
+                  <div className="text-right flex-shrink-0 flex items-center gap-3">
+                    <div>
+                      <p className="text-gray-800 text-lg text-right" style={{ fontWeight: 800 }}>
+                        {subject.grade.toFixed(1)}
+                      </p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${bg} ${color} inline-block mt-0.5`} style={{ fontWeight: 600 }}>
+                        {label}
+                      </span>
+                    </div>
+                    {isExpanded ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
                   </div>
                 </div>
 
-                {/* Grade bar */}
-                <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${barColor}`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
+                {/* Expanded Details */}
+                {isExpanded && (
+                  <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                    {subject.details.map((detail, j) => (
+                      <div key={j} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">{detail.name}</span>
+                        <span className="text-sm text-gray-800" style={{ fontWeight: 600 }}>{detail.grade.toFixed(1)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}

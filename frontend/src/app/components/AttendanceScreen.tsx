@@ -64,7 +64,7 @@ export function AttendanceScreen() {
             <ChevronLeft className="text-white" size={24} />
           </button>
           <div>
-            <h1 className="text-white text-xl" style={{ fontWeight: 300 }}>EDEM</h1>
+            <h1 className="text-white text-xl" style={{ fontWeight: 300, fontFamily: 'Didot, Bodoni, serif' }}>EDEM</h1>
             <p className="text-white text-xs opacity-80">EDEM STUDENT HUB</p>
           </div>
         </div>
@@ -147,14 +147,6 @@ export function AttendanceScreen() {
                   >
                     {status.label}
                   </span>
-                </div>
-
-                {/* Attendance bar */}
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${status.bar}`}
-                    style={{ width: `${pct}%` }}
-                  />
                 </div>
 
                 <div className="flex justify-between mt-1">

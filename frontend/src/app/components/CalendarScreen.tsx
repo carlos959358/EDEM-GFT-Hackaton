@@ -161,7 +161,7 @@ export function CalendarScreen() {
             <ChevronLeft className="text-white" size={24} />
           </button>
           <div>
-            <h1 className="text-white text-xl" style={{ fontWeight: 300 }}>EDEM</h1>
+            <h1 className="text-white text-xl" style={{ fontWeight: 300, fontFamily: 'Didot, Bodoni, serif' }}>EDEM</h1>
             <p className="text-white text-xs opacity-80">EDEM STUDENT HUB</p>
           </div>
         </div>
