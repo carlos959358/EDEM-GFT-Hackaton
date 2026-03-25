@@ -15,3 +15,9 @@ variable "credentials_file" {
   type        = string
   default     = "../spa-datajuniorsprogram-sdb-001-899009cc32ac.json"
 }
+
+variable "db_password" {
+  description = "Password for the Cloud SQL database user"
+  type        = string
+  sensitive   = true
+}
