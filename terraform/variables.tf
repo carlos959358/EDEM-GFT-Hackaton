@@ -15,3 +15,16 @@ variable "credentials_file" {
   type        = string
   default     = "../spa-datajuniorsprogram-sdb-001-899009cc32ac.json"
 }
+
+variable "service_name" {
+  description = "Nombre del recurso en Cloud Run"
+  type        = string
+  default     = "cloudrun-service"
+}
+
+variable "container_image" {
+  description = "La imagen de Docker que se va a desplegar"
+  type        = string
+  default     = "us-docker.pkg.dev/cloudrun/container/hello" #cambiar cuando sea necesario
+}
+
