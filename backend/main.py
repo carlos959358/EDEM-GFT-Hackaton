@@ -166,7 +166,8 @@ def get_user_profile(user_id: str, db: Session = Depends(get_db)):
         "apellido": usuario.apellido,
         "correo": usuario.correo,
         "rol": rol,
-        "url_foto": usuario.url_foto
+        "url_foto": usuario.url_foto,
+        "contrasena": usuario.contrasena
     }
 
 # ==========================================
