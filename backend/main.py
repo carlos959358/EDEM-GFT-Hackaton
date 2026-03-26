@@ -9,6 +9,7 @@ from typing import Optional
 from sqlalchemy import Column, String, DateTime
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+import bcrypt as bcrypt_lib
 import uuid
 from datetime import datetime, date, timedelta
 from typing import List
@@ -152,7 +153,7 @@ async def login_for_access_token(db: Session = Depends(get_db), form_data: OAuth
         if not stored:
             return False
         if stored.startswith("$2b$") or stored.startswith("$2a$"):
-            return pwd_context.verify(provided, stored)
+            return bcrypt_lib.checkpw(provided.encode("utf-8"), stored.encode("utf-8"))
         return stored == provided  # plain text fallback (pre-migration)
 
     alumno = db.query(Alumno).filter(Alumno.correo == form_data.username).first()

@@ -9,4 +9,5 @@ psycopg2-binary
 gunicorn
 python-jose[cryptography]
 passlib[bcrypt]
+bcrypt
 google-cloud-firestore
