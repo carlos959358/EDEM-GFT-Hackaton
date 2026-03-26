@@ -36,12 +36,18 @@ jobs:
       - name: Deploy backend to Cloud Run
         env:
           IMAGE_TAG: ${{ github.sha }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
         run: |
           gcloud run deploy gft-hackaton-backend \
             --image "$REGISTRY/backend:$IMAGE_TAG" \
             --region "$REGION" \
             --platform managed \
-            --allow-unauthenticated
+            --allow-unauthenticated \
+            --set-env-vars "DB_USER=$DB_USER,DB_PASSWORD=$DB_PASSWORD,DB_HOST=$DB_HOST,DB_PORT=$DB_PORT,DB_NAME=$DB_NAME"
 
   deploy-frontend:
     runs-on: ubuntu-latest
