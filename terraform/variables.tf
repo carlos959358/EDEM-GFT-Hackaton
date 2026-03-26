@@ -26,3 +26,8 @@ variable "firestore_location" {
   type        = string
   default     = "europe-west1"
 }
+
+variable "cicd_sa_email" {
+  description = "Email of the service account used by GitHub Actions CI/CD"
+  type        = string
+}
