@@ -25,28 +25,34 @@ export function ProfileScreen() {
   useEffect(() => {
     setUserRole(localStorage.getItem('userRole'));
   }, []);
-
   const isAdmin = userRole === 'admin';
+  const isProfessor = userRole === 'professor';
 
   // Editable fields
-  const [email,    setEmail]    = useState(isAdmin ? 'admin@admin.es' : 'paco.perez@edem.es');
-  const [linkedin, setLinkedin] = useState(isAdmin ? 'linkedin.com/in/edem' : 'linkedin.com/in/paco-perez');
+  const [email,    setEmail]    = useState('');
+  const [linkedin, setLinkedin] = useState('');
 
   // Temp state while editing
   const [tmpEmail,    setTmpEmail]    = useState(email);
   const [tmpLinkedin, setTmpLinkedin] = useState(linkedin);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Fixed profile data
-  const nombre   = isAdmin ? 'Admin' : 'Paco';
-  const apellido = isAdmin ? 'User' : 'Pérez';
-  const curso    = isAdmin ? 'Personal de EDEM' : 'Grado ADE + DATA · 2º Curso';
-  const matricula = isAdmin ? '#001' : '#999';
-  const role: Role = isAdmin ? 'Coordinador' : 'Alumno';
+  const nombre   = isAdmin ? 'Admin' : isProfessor ? 'Luis' : 'Paco';
+  const apellido = isAdmin ? 'User' : isProfessor ? 'García' : 'Pérez';
+  const curso    = isAdmin ? 'Personal de EDEM' : isProfessor ? 'Profesor de Marketing y Finanzas' : 'Grado ADE + DATA · 2º Curso';
+  const matricula = isAdmin ? '#001' : isProfessor ? '#P015' : '#999';
+  const role: Role = isAdmin ? 'Coordinador' : isProfessor ? 'Profesor' : 'Alumno';
+
   useEffect(() => {
-    setEmail(isAdmin ? 'admin@admin.es' : 'paco.perez@edem.es');
-  }, [isAdmin]);
+    const newEmail = isAdmin ? 'admin@admin.es' : isProfessor ? 'luis.garcia@profesor.edem.es' : 'paco.perez@edem.es';
+    const newLinkedin = isAdmin ? 'linkedin.com/in/edem' : isProfessor ? 'linkedin.com/in/luis-garcia' : 'linkedin.com/in/paco-perez';
+    setEmail(newEmail);
+    setLinkedin(newLinkedin);
+    setTmpEmail(newEmail);
+    setTmpLinkedin(newLinkedin);
+  }, [isAdmin, isProfessor]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -250,6 +256,16 @@ export function ProfileScreen() {
               style={{ fontWeight: 600 }}
             >
               📚 Mis Cursos
+            </button>
+          </div>
+        ) : isProfessor ? (
+          <div className="pt-2 grid grid-cols-1 gap-3">
+            <button
+              onClick={() => navigate('/teacher/grades')}
+              className="bg-[#008899] text-white py-3 rounded-2xl text-sm w-full hover:bg-[#007788] transition-colors"
+              style={{ fontWeight: 600 }}
+            >
+              👨‍🎓 Calificar Alumnos
             </button>
           </div>
         ) : (
