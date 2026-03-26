@@ -276,22 +276,26 @@ export function ProfileScreen() {
         </div>
 
         {/* Quick access buttons */}
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => navigate('/grades')}
-            className="bg-[#008899] text-white py-3 rounded-2xl text-sm hover:bg-[#007788] transition-colors"
-            style={{ fontWeight: 600 }}
-          >
-            📊 Mis Notas
-          </button>
-          <button
-            onClick={() => navigate('/attendance')}
-            className="bg-white text-[#008899] border border-[#008899] py-3 rounded-2xl text-sm hover:bg-[#008899]/5 transition-colors"
-            style={{ fontWeight: 600 }}
-          >
-            📋 Asistencia
-          </button>
-        </div>
+        {isAdmin ? (
+          <div className="pt-2">
+            <button
+              onClick={() => navigate('/courses')}
+              className="bg-[#008899] text-white py-3 rounded-2xl text-sm w-full hover:bg-[#007788] transition-colors"
+              style={{ fontWeight: 600 }}
+            >
+              📚 Mis Cursos
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => navigate('/grades')} className="bg-[#008899] text-white py-3 rounded-2xl text-sm hover:bg-[#007788] transition-colors" style={{ fontWeight: 600 }}>
+              📊 Mis Notas
+            </button>
+            <button onClick={() => navigate('/attendance')} className="bg-white text-[#008899] border border-[#008899] py-3 rounded-2xl text-sm hover:bg-[#008899]/5 transition-colors" style={{ fontWeight: 600 }}>
+              📋 Asistencia
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
