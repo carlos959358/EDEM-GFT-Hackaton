@@ -1,13 +1,18 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import NullPool
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy import Column, String, DateTime
-import uuid
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import List
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+import os
+import uuid
 from dotenv import load_dotenv
 
 # Importamos los modelos de la BBDD que creamos antes
@@ -17,6 +22,20 @@ from config import settings
 
 # Cargamos las variables de entorno desde el archivo .env
 load_dotenv()
+
+# ==========================================
+# 0. CONFIGURACIÓN DE SEGURIDAD (JWT y Contraseñas)
+# ==========================================
+SECRET_KEY = os.getenv("SECRET_KEY", "un_secreto_muy_dificil_de_adivinar_y_largo")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 1 día
+
+# Para hashear contraseñas
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Esquema de autenticación
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/token")
+
 
 # ==========================================
 # 1. CONEXIÓN A LA BASE DE DATOS
@@ -38,6 +57,29 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 app = FastAPI(title="API Perfiles y Roles")
 
+# ==========================================
+# CORS — Permite peticiones desde el frontend
+# ==========================================
+# En producción, FRONTEND_URL se configura como variable de entorno en Cloud Run
+# En desarrollo, se permite localhost:5173 (Vite dev server)
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+]
+
+# Si hay una URL de frontend configurada en producción, la añadimos
+frontend_url = os.getenv("FRONTEND_URL")
+if frontend_url:
+    ALLOWED_ORIGINS.append(frontend_url)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Dependencia para tener una sesión de base de datos por cada petición
 def get_db():
     db = SessionLocal()
@@ -55,13 +97,46 @@ class ProfileUpdate(BaseModel):
     correo: Optional[str] = None
 
 # ==========================================
-# 3. UTILIDADES / MOCK AUTH
+# 3. UTILIDADES / AUTENTICACIÓN REAL
 # ==========================================
-# SIMULACIÓN: Esta función simularía extraer el ID del usuario desde el JWT Token
-def get_current_user_id():
-    # Para probar la API, devolvemos un ID fijo. 
-    # En producción, esto leería el header 'Authorization: Bearer <token>'
-    return "A001" 
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    """
+    Dependencia que decodifica el token JWT, extrae el ID de usuario
+    y lo devuelve. Lanza un error si el token es inválido.
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    # Verificamos que el usuario del token existe en la BBDD
+    usuario, _ = buscar_usuario(db, user_id)
+    if usuario is None:
+        raise credentials_exception
+        
+    return user_id
 
 # Función vital: Como tienes 3 tablas separadas, buscamos al usuario en todas
 def buscar_usuario(db: Session, user_id: str):
@@ -80,10 +155,37 @@ def buscar_usuario(db: Session, user_id: str):
 # 4. ENDPOINTS: PERFIL Y ROLES
 # ==========================================
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+@app.post("/api/v1/token", response_model=Token, tags=["Autenticación"])
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    """
+    Endpoint de login. Recibe email (username) y contraseña.
+    Devuelve un token JWT si las credenciales son válidas.
+    """
+    # Por ahora, solo buscamos en la tabla de alumnos
+    user = db.query(Alumno).filter(Alumno.correo == form_data.username).first()
+    
+    # Si no es alumno, podríamos buscar en profesores, etc.
+    
+    if not user or not verify_password(form_data.password, user.contrasena):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email o contraseña incorrectos",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.id_alumno}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
 @app.get("/api/v1/users/me", tags=["Perfil y Roles"])
 def get_my_profile(
-    db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user)
 ):
     """Obtiene el perfil del usuario autenticado."""
     usuario, rol = buscar_usuario(db, current_user_id)
@@ -104,7 +206,7 @@ def get_my_profile(
 def update_profile(
     profile_data: ProfileUpdate, 
     db: Session = Depends(get_db),
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user)
 ):
     """Actualiza los datos básicos del perfil."""
     usuario, rol = buscar_usuario(db, current_user_id)
@@ -126,7 +228,7 @@ def update_profile(
 def upload_profile_photo(
     file: UploadFile = File(...), 
     db: Session = Depends(get_db),
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user)
 ):
     """Sube una foto de perfil y actualiza la URL en la BBDD."""
     usuario, rol = buscar_usuario(db, current_user_id)
@@ -161,6 +263,7 @@ def get_user_profile(user_id: str, db: Session = Depends(get_db)):
         "apellido": usuario.apellido,
         "correo": usuario.correo,
         "rol": rol,
+        "contraseña": usuario.contrasena,
         "url_foto": usuario.url_foto
     }
 
@@ -397,7 +500,7 @@ def get_enrolled_students(subject_id: str, db: Session = Depends(get_db)):
 @app.get("/api/v1/grades/me", response_model=List[GradeOut], tags=["Notas"])
 def get_my_grades(
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user)
 ):
     """Obtiene todas las notas del alumno autenticado."""
     resultados = db.query(RelAlumnoTarea, Tarea).join(
@@ -421,7 +524,7 @@ def get_my_grades(
 def get_my_grades_by_subject(
     subject_id: str, 
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user)
 ):
     """Obtiene las notas del alumno filtradas por asignatura."""
     resultados = db.query(RelAlumnoTarea, Tarea).join(
@@ -517,7 +620,7 @@ class AttendanceMetricsOut(BaseModel):
 @app.get("/api/v1/attendance/me", response_model=List[AttendanceOut], tags=["Asistencia"])
 def get_my_attendance(
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user)
 ):
     """Obtiene todo el historial de asistencia del alumno autenticado."""
     registros = db.query(Asistencia).filter(Asistencia.id_alumno == current_user_id).all()
@@ -526,7 +629,7 @@ def get_my_attendance(
 @app.get("/api/v1/attendance/me/metrics", response_model=AttendanceMetricsOut, tags=["Asistencia"])
 def get_attendance_metrics(
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user)
 ):
     """Calcula las métricas (% de asistencia) del alumno."""
     registros = db.query(Asistencia).filter(Asistencia.id_alumno == current_user_id).all()
@@ -635,7 +738,7 @@ class ReservationOut(ReservationBase):
 @app.get("/api/v1/reservations", response_model=List[ReservationOut], tags=["Reservas y Tutorías"])
 def list_my_reservations(
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user)
 ):
     """Lista las reservas que he solicitado (como alumno) o que me han solicitado (como profesor)."""
     # Buscamos donde el usuario sea alumno o profesor
@@ -648,7 +751,7 @@ def list_my_reservations(
 def request_tutoring(
     reservation_in: ReservationCreate, 
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user)
 ):
     """Solicita una nueva reserva o tutoría."""
     # Verificar si la franja existe y está disponible
@@ -676,7 +779,7 @@ def update_reservation(
     reservation_id: str, 
     reservation_in: ReservationUpdate, 
     db: Session = Depends(get_db),
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user)
 ):
     """Actualiza el estado de una reserva (Confirmar/Rechazar)."""
     reserva = db.query(Reserva).filter(Reserva.id == reservation_id).first()
@@ -756,7 +859,7 @@ class NotificationSettingsOut(BaseModel):
 @app.get("/api/v1/notifications", response_model=List[NotificationOut], tags=["Notificaciones"])
 def get_notifications(
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user)
 ):
     """Obtiene el listado de notificaciones del usuario."""
     notificaciones = db.query(Notificacion).filter(
@@ -769,7 +872,7 @@ def get_notifications(
 def mark_noti_as_read(
     notis_id: str, 
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user)
 ):
     """Marca una notificación específica como leída."""
     notificacion = db.query(Notificacion).filter(
@@ -789,7 +892,7 @@ def mark_noti_as_read(
 @app.get("/api/v1/notifications/settings", response_model=NotificationSettingsOut, tags=["Notificaciones"])
 def get_notification_settings(
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user)
 ):
     """Obtiene las preferencias de avisos del usuario."""
     config = db.query(ConfiguracionNotificacion).filter(
@@ -836,7 +939,7 @@ class EmailOut(BaseModel):
 def list_emails(
     folder: str = "inbox", 
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user)
 ):
     """Lista los correos. Permite filtrar por 'inbox' (recibidos) o 'sent' (enviados)."""
     if folder == "inbox":
@@ -856,7 +959,7 @@ def list_emails(
 def send_email(
     email_in: EmailCreate, 
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user)
 ):
     """Envía un nuevo correo interno a otro usuario."""
     # Aquí podríamos añadir una validación para comprobar que el id_destinatario existe en la BBDD
@@ -879,7 +982,7 @@ def send_email(
 def read_email(
     email_id: str, 
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user_id: str = Depends(get_current_user)
 ):
     """Lee un correo específico. Si eres el destinatario, se marca como leído automáticamente."""
     correo = db.query(Correo).filter(Correo.id == email_id).first()
