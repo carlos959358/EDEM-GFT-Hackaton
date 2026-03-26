@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, TrendingUp, Award, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import { fetchMyGrades, type Grade } from '../api';
 
 interface GradeDetail {
   name: string;
@@ -16,7 +17,8 @@ interface Subject {
   details: GradeDetail[];
 }
 
-const subjects: Subject[] = [
+// Datos mock de fallback
+const MOCK_SUBJECTS: Subject[] = [
   { name: 'Big Data & Analytics',    code: 'BDA-301', grade: 8.5, credits: 6, period: 'Q1', details: [{ name: 'Práctica 1', grade: 8.0 }, { name: 'Examen Final', grade: 9.0 }] },
   { name: 'Marketing Digital',       code: 'MKT-201', grade: 7.2, credits: 5, period: 'Q1', details: [{ name: 'Entregable', grade: 7.5 }, { name: 'Examen Final', grade: 7.0 }] },
   { name: 'Finanzas Corporativas',   code: 'FIN-302', grade: 9.0, credits: 6, period: 'Q1', details: [{ name: 'Caso Práctico', grade: 9.5 }, { name: 'Examen', grade: 8.5 }] },
@@ -25,7 +27,26 @@ const subjects: Subject[] = [
   { name: 'Coaching y Liderazgo',    code: 'COA-201', grade: 7.5, credits: 4, period: 'Q2', details: [{ name: 'Ensayo', grade: 8.0 }, { name: 'Roleplay', grade: 7.0 }] },
 ];
 
-const average = subjects.reduce((acc, s) => acc + s.grade, 0) / subjects.length;
+// Transforma los datos del API a la estructura del componente
+function apiGradesToSubjects(grades: Grade[]): Subject[] {
+  const grouped: Record<string, Grade[]> = {};
+  for (const g of grades) {
+    if (!grouped[g.id_asignatura]) grouped[g.id_asignatura] = [];
+    grouped[g.id_asignatura].push(g);
+  }
+
+  return Object.entries(grouped).map(([code, tasks]) => {
+    const avg = tasks.reduce((sum, t) => sum + t.nota, 0) / tasks.length;
+    return {
+      name: code, // Se podría enriquecer con el nombre de la asignatura
+      code: code,
+      grade: Math.round(avg * 10) / 10,
+      credits: 6,
+      period: 'Q1',
+      details: tasks.map(t => ({ name: t.nombre_tarea, grade: t.nota })),
+    };
+  });
+}
 
 const getGradeLabel = (g: number) => {
   if (g >= 9)    return { label: 'Sobresaliente', color: 'text-purple-600', bg: 'bg-purple-50' };
@@ -38,7 +59,35 @@ const getGradeLabel = (g: number) => {
 export function GradesScreen() {
   const navigate = useNavigate();
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
-  const { label: avgLabel, color: avgColor, bg: avgBg } = getGradeLabel(average);
+  const [subjects, setSubjects] = useState<Subject[]>(MOCK_SUBJECTS);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchMyGrades()
+      .then((grades) => {
+        if (grades.length > 0) {
+          setSubjects(apiGradesToSubjects(grades));
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.warn('No se pudo cargar notas del API, usando datos mock:', err);
+        setLoading(false);
+      });
+  }, []);
+
+  const average = subjects.reduce((acc, s) => acc + s.grade, 0) / subjects.length;
+  const { label: avgLabel } = getGradeLabel(average);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#008899] flex items-center justify-center">
+        <div className="animate-pulse text-white text-lg" style={{ fontWeight: 600 }}>
+          Cargando notas...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#008899] pb-20">
@@ -134,7 +183,7 @@ export function GradesScreen() {
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-3 mt-5">
           {[
-            { icon: Award,    label: 'Mejor nota',  value: '9.0', sub: 'Finanzas' },
+            { icon: Award,    label: 'Mejor nota',  value: Math.max(...subjects.map(s => s.grade)).toFixed(1), sub: subjects.reduce((best, s) => s.grade > best.grade ? s : best, subjects[0]).name },
             { icon: TrendingUp, label: 'Media',     value: average.toFixed(2), sub: 'Global' },
             { icon: BookOpen, label: 'ECTS',        value: subjects.reduce((a, s) => a + s.credits, 0).toString(), sub: 'Créditos' },
           ].map(({ icon: Icon, label, value, sub }, i) => (

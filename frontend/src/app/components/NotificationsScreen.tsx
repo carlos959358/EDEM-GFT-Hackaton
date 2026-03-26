@@ -1,10 +1,12 @@
+import { useState, useEffect } from 'react';
 import { ChevronLeft, Calendar, Mail, Award, MapPin, AlertCircle, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import { fetchNotifications, markNotificationRead, type Notification as APINotification } from '../api';
 
 type NotifType = 'calendar' | 'email' | 'grade' | 'booking' | 'attendance';
 
 interface Notification {
-  id: number;
+  id: string;
   type: NotifType;
   title: string;
   message: string;
@@ -12,56 +14,48 @@ interface Notification {
   isRead: boolean;
 }
 
-const mockNotifications: Notification[] = [
-  {
-    id: 1,
-    type: 'attendance',
-    title: 'Aviso de Asistencia',
-    message: 'Estás por debajo del 80% mínimo en Estrategia Empresarial. Revisa tus faltas.',
-    time: 'Hace 1 hora',
-    isRead: false,
-  },
-  {
-    id: 2,
-    type: 'calendar',
-    title: 'Recordatorio de Examen',
-    message: 'Mañana tienes el examen de Finanzas a las 12:00h en el Aula 3.',
-    time: 'Hace 3 horas',
-    isRead: false,
-  },
-  {
-    id: 3,
-    type: 'email',
-    title: 'Nuevo correo de Coordinación',
-    message: 'Importante: Abierto el plazo para la selección de TFG.',
-    time: 'Ayer, 16:45',
-    isRead: true,
-  },
-  {
-    id: 4,
-    type: 'grade',
-    title: 'Nuevas Notas Publicadas',
-    message: 'Se han publicado las notas de la entrega de Big Data & Analytics.',
-    time: 'Ayer, 11:30',
-    isRead: true,
-  },
-  {
-    id: 5,
-    type: 'booking',
-    title: 'Reserva Confirmada',
-    message: 'Tu reserva para la Sala EDEM 1 ha sido confirmada para el Viernes 27 de 10h a 12h.',
-    time: 'Mar 24, 09:15',
-    isRead: true,
-  },
-  {
-    id: 6,
-    type: 'calendar',
-    title: 'Entrega Próxima',
-    message: 'Recuerda subir el proyecto de Marketing Digital antes de esta noche.',
-    time: 'Mar 23, 18:00',
-    isRead: true,
-  },
+const MOCK_NOTIFICATIONS: Notification[] = [
+  { id: '1', type: 'attendance', title: 'Aviso de Asistencia', message: 'Estás por debajo del 80% mínimo en Estrategia Empresarial. Revisa tus faltas.', time: 'Hace 1 hora', isRead: false },
+  { id: '2', type: 'calendar', title: 'Recordatorio de Examen', message: 'Mañana tienes el examen de Finanzas a las 12:00h en el Aula 3.', time: 'Hace 3 horas', isRead: false },
+  { id: '3', type: 'email', title: 'Nuevo correo de Coordinación', message: 'Importante: Abierto el plazo para la selección de TFG.', time: 'Ayer, 16:45', isRead: true },
+  { id: '4', type: 'grade', title: 'Nuevas Notas Publicadas', message: 'Se han publicado las notas de la entrega de Big Data & Analytics.', time: 'Ayer, 11:30', isRead: true },
+  { id: '5', type: 'booking', title: 'Reserva Confirmada', message: 'Tu reserva para la Sala EDEM 1 ha sido confirmada para el Viernes 27 de 10h a 12h.', time: 'Mar 24, 09:15', isRead: true },
+  { id: '6', type: 'calendar', title: 'Entrega Próxima', message: 'Recuerda subir el proyecto de Marketing Digital antes de esta noche.', time: 'Mar 23, 18:00', isRead: true },
 ];
+
+// Mapeo de tipos del backend a tipos del componente
+const TIPO_MAP: Record<string, NotifType> = {
+  calendar: 'calendar',
+  email: 'email',
+  grade: 'grade',
+  booking: 'booking',
+  attendance: 'attendance',
+};
+
+function formatDate(isoDate: string): string {
+  try {
+    const d = new Date(isoDate);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    if (diffHours < 1) return 'Hace unos minutos';
+    if (diffHours < 24) return `Hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`;
+    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return isoDate;
+  }
+}
+
+function apiToNotifications(data: APINotification[]): Notification[] {
+  return data.map(n => ({
+    id: n.id,
+    type: TIPO_MAP[n.tipo] || 'calendar',
+    title: n.titulo,
+    message: n.mensaje,
+    time: formatDate(n.fecha_creacion),
+    isRead: n.leida,
+  }));
+}
 
 const TYPE_CONFIG: Record<NotifType, { icon: any; bg: string; color: string }> = {
   calendar:   { icon: Calendar,    bg: 'bg-blue-100',   color: 'text-blue-600' },
@@ -73,6 +67,51 @@ const TYPE_CONFIG: Record<NotifType, { icon: any; bg: string; color: string }> =
 
 export function NotificationsScreen() {
   const navigate = useNavigate();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchNotifications()
+      .then((data) => {
+        // La API es la fuente de la verdad. Si no devuelve nada, mostramos la lista vacía.
+        setNotifications(apiToNotifications(data));
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.warn('No se pudo cargar notificaciones del API, usando datos mock:', err);
+        setNotifications(MOCK_NOTIFICATIONS); // Fallback a datos mock si la API falla
+        setLoading(false);
+      });
+  }, []);
+
+  const handleMarkRead = (id: string) => {
+    setNotifications(prev =>
+      prev.map(n => n.id === id ? { ...n, isRead: true } : n)
+    );
+    markNotificationRead(id).catch((err) =>
+      console.warn('Error marcando notificación como leída:', err)
+    );
+  };
+
+  const handleMarkAllRead = () => {
+    const unread = notifications.filter(n => !n.isRead);
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    for (const n of unread) {
+      markNotificationRead(n.id).catch(() => {});
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#008899] flex items-center justify-center">
+        <div className="animate-pulse text-white text-lg" style={{ fontWeight: 600 }}>
+          Cargando notificaciones...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#008899] pb-20 flex flex-col">
@@ -91,20 +130,29 @@ export function NotificationsScreen() {
       {/* Content */}
       <div className="bg-white rounded-t-3xl flex-1 px-5 pt-6 pb-6 shadow-inner">
         <div className="flex items-center justify-between mb-6">
-          <p className="text-gray-500 text-sm">Tienes 2 notificaciones nuevas</p>
-          <button className="text-[#008899] text-sm" style={{ fontWeight: 600 }}>
-            Marcar todo como leído
-          </button>
+          <p className="text-gray-500 text-sm">
+            {unreadCount > 0 ? `Tienes ${unreadCount} notificación${unreadCount > 1 ? 'es' : ''} nueva${unreadCount > 1 ? 's' : ''}` : 'No tienes notificaciones nuevas'}
+          </p>
+          {unreadCount > 0 && (
+            <button
+              onClick={handleMarkAllRead}
+              className="text-[#008899] text-sm"
+              style={{ fontWeight: 600 }}
+            >
+              Marcar todo como leído
+            </button>
+          )}
         </div>
 
         <div className="space-y-4">
-          {mockNotifications.map((notif) => {
+          {notifications.map((notif) => {
             const { icon: Icon, bg, color } = TYPE_CONFIG[notif.type];
             
             return (
               <div 
-                key={notif.id} 
-                className={`flex gap-4 p-4 rounded-2xl transition-all ${notif.isRead ? 'bg-gray-50' : 'bg-white shadow-sm border border-gray-100'}`}
+                key={notif.id}
+                onClick={() => !notif.isRead && handleMarkRead(notif.id)}
+                className={`flex gap-4 p-4 rounded-2xl transition-all cursor-pointer ${notif.isRead ? 'bg-gray-50' : 'bg-white shadow-sm border border-gray-100'}`}
               >
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${bg}`}>
                   <Icon size={20} className={color} />

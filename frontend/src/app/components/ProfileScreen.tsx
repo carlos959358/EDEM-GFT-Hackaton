@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { useNavigate } from 'react-router';
+import { fetchMyProfile, updateMyProfile, type UserProfile } from '../api';
 
 const DEFAULT_PHOTO = 'https://images.unsplash.com/photo-1600180758890-6b94519a8ba6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMG1hbGUlMjBzdHVkZW50JTIwcHJvZmVzc2lvbmFsJTIwaGVhZHNob3R8ZW58MXx8fHwxNzc0NDUzMDQ4fDA&ixlib=rb-4.1.0&q=80&w=1080';
 
@@ -16,37 +17,56 @@ const ROLE_COLORS: Record<Role, { bg: string; text: string }> = {
   Coordinador:  { bg: 'bg-teal-100',   text: 'text-teal-700'   },
 };
 
+// Datos mock de fallback
+const MOCK_PROFILE: UserProfile = {
+  id: 'A001',
+  nombre: 'Paco',
+  apellido: 'Pérez',
+  correo: 'paco.perez@edem.es',
+  rol: 'alumno',
+  url_foto: null,
+};
+
 export function ProfileScreen() {
   const navigate = useNavigate();
-  const [photoUrl, setPhotoUrl]         = useState(DEFAULT_PHOTO);
-  const [userRole, setUserRole]         = useState<string | null>(null);
+  const [profile, setProfile] = useState<UserProfile>(MOCK_PROFILE);
+  const [loading, setLoading] = useState(true);
+  const [photoUrl, setPhotoUrl] = useState(DEFAULT_PHOTO);
   const [isEditingContact, setEditContact] = useState(false);
 
-  useEffect(() => {
-    setUserRole(localStorage.getItem('userRole'));
-  }, []);
-
-  const isAdmin = userRole === 'admin';
-
   // Editable fields
-  const [email,    setEmail]    = useState(isAdmin ? 'admin@admin.es' : 'paco.perez@edem.es');
-  const [linkedin, setLinkedin] = useState(isAdmin ? 'linkedin.com/in/edem' : 'linkedin.com/in/paco-perez');
+  const [email, setEmail] = useState(MOCK_PROFILE.correo);
+  const [linkedin, setLinkedin] = useState('linkedin.com/in/paco-perez');
 
   // Temp state while editing
-  const [tmpEmail,    setTmpEmail]    = useState(email);
+  const [tmpEmail, setTmpEmail] = useState(email);
   const [tmpLinkedin, setTmpLinkedin] = useState(linkedin);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Fixed profile data
-  const nombre   = isAdmin ? 'Admin' : 'Paco';
-  const apellido = isAdmin ? 'User' : 'Pérez';
-  const curso    = isAdmin ? 'Personal de EDEM' : 'Grado ADE + DATA · 2º Curso';
-  const matricula = isAdmin ? '#001' : '#999';
-  const role: Role = isAdmin ? 'Coordinador' : 'Alumno';
+
+  // Cargar perfil desde el API
   useEffect(() => {
-    setEmail(isAdmin ? 'admin@admin.es' : 'paco.perez@edem.es');
-  }, [isAdmin]);
+    fetchMyProfile()
+      .then((data) => {
+        setProfile(data);
+        setEmail(data.correo);
+        setTmpEmail(data.correo);
+        if (data.url_foto) setPhotoUrl(data.url_foto);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.warn('No se pudo cargar el perfil del API, usando datos mock:', err);
+        setLoading(false);
+      });
+  }, []);
+
+  // Derived values
+  const nombre = profile.nombre;
+  const apellido = profile.apellido;
+  const curso = 'Grado ADE + DATA · 2º Curso';
+  const matricula = `#${profile.id}`;
+  const rolLabel = profile.rol.charAt(0).toUpperCase() + profile.rol.slice(1);
+  const role = (ROLE_COLORS[rolLabel as Role] ? rolLabel : 'Alumno') as Role;
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -59,6 +79,10 @@ export function ProfileScreen() {
     setEmail(tmpEmail);
     setLinkedin(tmpLinkedin);
     setEditContact(false);
+    // Enviar cambios al backend
+    updateMyProfile({ correo: tmpEmail }).catch((err) =>
+      console.warn('Error actualizando perfil:', err)
+    );
   };
 
   const handleCancelContact = () => {
@@ -74,6 +98,16 @@ export function ProfileScreen() {
   };
 
   const roleStyle = ROLE_COLORS[role];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
+        <div className="animate-pulse text-[#008899] text-lg" style={{ fontWeight: 600 }}>
+          Cargando perfil...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] pb-20">
@@ -242,26 +276,22 @@ export function ProfileScreen() {
         </div>
 
         {/* Quick access buttons */}
-        {isAdmin ? (
-          <div className="pt-2">
-            <button
-              onClick={() => navigate('/courses')}
-              className="bg-[#008899] text-white py-3 rounded-2xl text-sm w-full hover:bg-[#007788] transition-colors"
-              style={{ fontWeight: 600 }}
-            >
-              📚 Mis Cursos
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => navigate('/grades')} className="bg-[#008899] text-white py-3 rounded-2xl text-sm hover:bg-[#007788] transition-colors" style={{ fontWeight: 600 }}>
-              📊 Mis Notas
-            </button>
-            <button onClick={() => navigate('/attendance')} className="bg-white text-[#008899] border border-[#008899] py-3 rounded-2xl text-sm hover:bg-[#008899]/5 transition-colors" style={{ fontWeight: 600 }}>
-              📋 Asistencia
-            </button>
-          </div>
-        )}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => navigate('/grades')}
+            className="bg-[#008899] text-white py-3 rounded-2xl text-sm hover:bg-[#007788] transition-colors"
+            style={{ fontWeight: 600 }}
+          >
+            📊 Mis Notas
+          </button>
+          <button
+            onClick={() => navigate('/attendance')}
+            className="bg-white text-[#008899] border border-[#008899] py-3 rounded-2xl text-sm hover:bg-[#008899]/5 transition-colors"
+            style={{ fontWeight: 600 }}
+          >
+            📋 Asistencia
+          </button>
+        </div>
       </div>
     </div>
   );
