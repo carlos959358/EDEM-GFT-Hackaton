@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { useNavigate } from 'react-router';
+import { getMyProfile } from '../api/client';
 
 const DEFAULT_PHOTO = 'https://images.unsplash.com/photo-1600180758890-6b94519a8ba6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMG1hbGUlMjBzdHVkZW50JTIwcHJvZmVzc2lvbmFsJTIwaGVhZHNob3R8ZW58MXx8fHwxNzc0NDUzMDQ4fDA&ixlib=rb-4.1.0&q=80&w=1080';
 
@@ -16,43 +17,55 @@ const ROLE_COLORS: Record<Role, { bg: string; text: string }> = {
   Coordinador:  { bg: 'bg-teal-100',   text: 'text-teal-700'   },
 };
 
+function mapRolToDisplay(rol: string): Role {
+  if (rol === 'profesor') return 'Profesor';
+  if (rol === 'personal') return 'Coordinador';
+  return 'Alumno';
+}
+
 export function ProfileScreen() {
   const navigate = useNavigate();
   const [photoUrl, setPhotoUrl]         = useState(DEFAULT_PHOTO);
   const [userRole, setUserRole]         = useState<string | null>(null);
   const [isEditingContact, setEditContact] = useState(false);
 
-  useEffect(() => {
-    setUserRole(localStorage.getItem('userRole'));
-  }, []);
-  const isAdmin = userRole === 'admin';
-  const isProfessor = userRole === 'professor';
+  const [nombre, setNombre]   = useState('');
+  const [apellido, setApellido] = useState('');
+  const [userId, setUserId]   = useState('');
+  const [role, setRole]       = useState<Role>('Alumno');
 
-  // Editable fields
   const [email,    setEmail]    = useState('');
   const [linkedin, setLinkedin] = useState('');
-
-  // Temp state while editing
-  const [tmpEmail,    setTmpEmail]    = useState(email);
-  const [tmpLinkedin, setTmpLinkedin] = useState(linkedin);
+  const [tmpEmail,    setTmpEmail]    = useState('');
+  const [tmpLinkedin, setTmpLinkedin] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fixed profile data
-  const nombre   = isAdmin ? 'Admin' : isProfessor ? 'Luis' : 'Paco';
-  const apellido = isAdmin ? 'User' : isProfessor ? 'García' : 'Pérez';
-  const curso    = isAdmin ? 'Personal de EDEM' : isProfessor ? 'Profesor de Marketing y Finanzas' : 'Grado ADE + DATA · 2º Curso';
-  const matricula = isAdmin ? '#001' : isProfessor ? '#P015' : '#999';
-  const role: Role = isAdmin ? 'Coordinador' : isProfessor ? 'Profesor' : 'Alumno';
-
   useEffect(() => {
-    const newEmail = isAdmin ? 'admin@admin.es' : isProfessor ? 'luis.garcia@profesor.edem.es' : 'paco.perez@edem.es';
-    const newLinkedin = isAdmin ? 'linkedin.com/in/edem' : isProfessor ? 'linkedin.com/in/luis-garcia' : 'linkedin.com/in/paco-perez';
-    setEmail(newEmail);
-    setLinkedin(newLinkedin);
-    setTmpEmail(newEmail);
-    setTmpLinkedin(newLinkedin);
-  }, [isAdmin, isProfessor]);
+    const storedRole = localStorage.getItem('userRole');
+    setUserRole(storedRole);
+
+    getMyProfile()
+      .then((profile) => {
+        setNombre(profile.nombre);
+        setApellido(profile.apellido);
+        setUserId(profile.id);
+        setEmail(profile.correo);
+        setTmpEmail(profile.correo);
+        setRole(mapRolToDisplay(profile.rol));
+        if (profile.url_foto) setPhotoUrl(profile.url_foto);
+      })
+      .catch(() => {
+        // Fallback to localStorage values if API fails
+        setNombre(localStorage.getItem('userName')?.split(' ')[0] || '');
+        setApellido(localStorage.getItem('userName')?.split(' ').slice(1).join(' ') || '');
+        setEmail(localStorage.getItem('userEmail') || '');
+        setTmpEmail(localStorage.getItem('userEmail') || '');
+      });
+  }, []);
+
+  const isAdmin = userRole === 'admin';
+  const isProfessor = userRole === 'professor';
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -80,6 +93,16 @@ export function ProfileScreen() {
   };
 
   const roleStyle = ROLE_COLORS[role];
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userPhoto');
+    navigate('/');
+  };
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] pb-20">
@@ -137,8 +160,8 @@ export function ProfileScreen() {
               <Hash size={18} className="text-[#008899]" />
             </div>
             <div>
-              <p className="text-xs text-gray-400">Matrícula</p>
-              <p className="text-gray-800" style={{ fontWeight: 600 }}>{matricula}</p>
+              <p className="text-xs text-gray-400">ID</p>
+              <p className="text-gray-800" style={{ fontWeight: 600 }}>{userId || '—'}</p>
             </div>
           </div>
 
@@ -149,8 +172,8 @@ export function ProfileScreen() {
               <GraduationCap size={18} className="text-[#008899]" />
             </div>
             <div>
-              <p className="text-xs text-gray-400">Curso</p>
-              <p className="text-gray-800" style={{ fontWeight: 600 }}>{curso}</p>
+              <p className="text-xs text-gray-400">Rol</p>
+              <p className="text-gray-800" style={{ fontWeight: 600 }}>{role}</p>
             </div>
           </div>
 
@@ -161,7 +184,7 @@ export function ProfileScreen() {
               <BadgeCheck size={18} className="text-[#008899]" />
             </div>
             <div>
-              <p className="text-xs text-gray-400">Rol</p>
+              <p className="text-xs text-gray-400">Tipo</p>
               <span
                 className={`text-sm px-2 py-0.5 rounded-full ${roleStyle.bg} ${roleStyle.text}`}
                 style={{ fontWeight: 600 }}
@@ -241,7 +264,9 @@ export function ProfileScreen() {
                   style={{ fontWeight: 500 }}
                 />
               ) : (
-                <p className="text-sm text-blue-600 truncate" style={{ fontWeight: 500 }}>{linkedin}</p>
+                <p className="text-sm text-blue-600 truncate" style={{ fontWeight: 500 }}>
+                  {linkedin || '—'}
+                </p>
               )}
             </div>
           </div>
@@ -282,7 +307,7 @@ export function ProfileScreen() {
         {/* Logout Button */}
         <div className="pt-3">
           <button
-            onClick={() => navigate('/')}
+            onClick={handleLogout}
             className="bg-white text-red-600 border border-red-300 py-3 rounded-2xl text-sm w-full hover:bg-red-50 transition-colors"
             style={{ fontWeight: 600 }}
           >

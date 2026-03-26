@@ -3,6 +3,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Build-time env var for the backend URL (injected by CI/CD)
+ARG VITE_BACKEND_URL
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+
 # Copiar solo los archivos de dependencias primero (aprovecha la caché de Docker)
 COPY package.json ./
 RUN npm install
@@ -15,7 +19,6 @@ RUN npm run build
 FROM nginx:alpine
 
 # Copiar los archivos compilados desde la etapa anterior
-# Nota: Si estás usando Create React App en lugar de Vite, cambia "dist" por "build"
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Cambiar el puerto por defecto de Nginx a 8080 (requerido por Cloud Run por defecto)

@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -48,6 +49,14 @@ app = FastAPI(
     description="API para gestionar perfiles, calendario, notas y más.",
     version="1.0.0",
     tags_metadata=[{"name": "Autenticación", "description": "Login y gestión de tokens."}]
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Dependencia para tener una sesión de base de datos por cada petición
@@ -135,22 +144,37 @@ async def get_current_user(db: Session = Depends(get_db), token: str = Depends(o
 async def login_for_access_token(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
     """
     Endpoint de login. Recibe 'username' (correo) y 'password'.
-    Devuelve un access_token.
+    Busca en alumnos, profesores y personal. Devuelve un access_token.
     """
-    # Por ahora, solo los alumnos tienen contraseña y pueden hacer login.
-    user = db.query(Alumno).filter(Alumno.correo == form_data.username).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="Correo o contraseña incorrectos", headers={"WWW-Authenticate": "Bearer"})
+    error = HTTPException(status_code=401, detail="Correo o contraseña incorrectos", headers={"WWW-Authenticate": "Bearer"})
 
-    # ⚠️ ADVERTENCIA DE SEGURIDAD: Comparación de contraseña en texto plano.
-    # En un entorno real, deberías usar:
-    # if not pwd_context.verify(form_data.password, user.contrasena):
-    if user.contrasena != form_data.password:
-        raise HTTPException(status_code=401, detail="Correo o contraseña incorrectos", headers={"WWW-Authenticate": "Bearer"})
+    def check_password(stored: str, provided: str) -> bool:
+        if not stored:
+            return False
+        if stored.startswith("$2b$") or stored.startswith("$2a$"):
+            return pwd_context.verify(provided, stored)
+        return stored == provided  # plain text fallback (pre-migration)
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    alumno = db.query(Alumno).filter(Alumno.correo == form_data.username).first()
+    if alumno:
+        if not check_password(alumno.contrasena, form_data.password):
+            raise error
+        user_id = alumno.id_alumno
+    else:
+        profesor = db.query(Profesor).filter(Profesor.correo == form_data.username).first()
+        if profesor:
+            if not check_password(profesor.contrasena, form_data.password):
+                raise error
+            user_id = profesor.id_profesor
+        else:
+            personal = db.query(PersonalEdem).filter(PersonalEdem.correo == form_data.username).first()
+            if not personal or not check_password(personal.contrasena, form_data.password):
+                raise error
+            user_id = personal.id_personal
+
     access_token = create_access_token(
-        data={"sub": user.id_alumno}, expires_delta=access_token_expires
+        data={"sub": user_id},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
