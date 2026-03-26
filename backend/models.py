@@ -12,6 +12,7 @@ class PersonalEdem(Base):
     nombre = Column(String)
     apellido = Column(String)
     correo = Column(String)
+    contrasena = Column(String)
     rol = Column(String)
     url_foto = Column(String)
 
@@ -40,6 +41,7 @@ class Profesor(Base):
     nombre = Column(String)
     apellido = Column(String)
     correo = Column(String)
+    contrasena = Column(String)
     url_foto = Column(String)
 
 class Tarea(Base):
