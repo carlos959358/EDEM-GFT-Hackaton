@@ -1,12 +1,16 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import NullPool
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy import Column, String, DateTime
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 import uuid
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import List
 from dotenv import load_dotenv
 
@@ -40,7 +44,20 @@ engine = create_engine(
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-app = FastAPI(title="API Perfiles y Roles")
+app = FastAPI(
+    title="API EDEM Student Hub",
+    description="API para gestionar perfiles, calendario, notas y más.",
+    version="1.0.0",
+    tags_metadata=[{"name": "Autenticación", "description": "Login y gestión de tokens."}]
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Dependencia para tener una sesión de base de datos por cada petición
 def get_db():
@@ -58,72 +75,128 @@ class ProfileUpdate(BaseModel):
     apellido: Optional[str] = None
     correo: Optional[str] = None
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    sub: Optional[str] = None
+
 # ==========================================
 # 3. UTILIDADES / MOCK AUTH
 # ==========================================
-# SIMULACIÓN: Esta función simularía extraer el ID del usuario desde el JWT Token
-def get_current_user_id():
-    # Para probar la API, devolvemos un ID fijo que EXISTE en la BD. 
-    # En producción, esto leería el header 'Authorization: Bearer <token>'
-    return "ALU-001"  # Ahsoka Tano - usuario que existe realmente 
+
+# --- Configuración de Seguridad (OAuth2 + JWT) ---
+SECRET_KEY = "tu-clave-secreta-deberia-ser-muy-larga-y-aleatoria-y-estar-en-un-secret-manager"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8 # 8 horas
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/token")
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
 # Función vital: Como tienes 3 tablas separadas, buscamos al usuario en todas
 def buscar_usuario(db: Session, user_id: str):
     alumno = db.query(Alumno).filter(Alumno.id_alumno == user_id).first()
-    if alumno: return alumno, "alumno"
-    
+    if alumno:
+        # Adjuntamos el rol al objeto para usarlo después
+        alumno.rol = "alumno"
+        return alumno
+
     profesor = db.query(Profesor).filter(Profesor.id_profesor == user_id).first()
-    if profesor: return profesor, "profesor"
-    
+    if profesor:
+        profesor.rol = "profesor"
+        return profesor
+
     personal = db.query(PersonalEdem).filter(PersonalEdem.id_personal == user_id).first()
-    if personal: return personal, personal.rol or "personal"
-    
-    return None, None
+    if personal:
+        personal.rol = personal.rol or "personal"
+        return personal
+
+    return None
+
+async def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None: raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    user = buscar_usuario(db, user_id)
+    if user is None: raise credentials_exception
+    return user
 
 # ==========================================
 # 4. ENDPOINTS: PERFIL Y ROLES
 # ==========================================
 
+@app.post("/api/v1/token", response_model=Token, tags=["Autenticación"])
+async def login_for_access_token(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
+    """
+    Endpoint de login. Recibe 'username' (correo) y 'password'.
+    Busca en alumnos, profesores y personal. Devuelve un access_token.
+    """
+    error = HTTPException(status_code=401, detail="Correo o contraseña incorrectos", headers={"WWW-Authenticate": "Bearer"})
+
+    alumno = db.query(Alumno).filter(Alumno.correo == form_data.username).first()
+    if alumno:
+        if alumno.contrasena != form_data.password:
+            raise error
+        user_id = alumno.id_alumno
+    else:
+        profesor = db.query(Profesor).filter(Profesor.correo == form_data.username).first()
+        if profesor:
+            if profesor.contrasena != form_data.password:
+                raise error
+            user_id = profesor.id_profesor
+        else:
+            personal = db.query(PersonalEdem).filter(PersonalEdem.correo == form_data.username).first()
+            if not personal or personal.contrasena != form_data.password:
+                raise error
+            user_id = personal.id_personal
+
+    access_token = create_access_token(
+        data={"sub": user_id},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
 @app.get("/api/v1/users/me", tags=["Perfil y Roles"])
-def get_my_profile(
-    db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
-):
+def get_my_profile(current_user: Alumno = Depends(get_current_user)):
     """Obtiene el perfil del usuario autenticado."""
-    usuario, rol = buscar_usuario(db, current_user_id)
-    
-    if not usuario:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-        
     return {
-        "id": current_user_id,
-        "nombre": usuario.nombre,
-        "apellido": usuario.apellido,
-        "correo": usuario.correo,
-        "rol": rol,
-        "url_foto": usuario.url_foto,
-        "contrasena": usuario.contrasena
+        "id": getattr(current_user, 'id_alumno', None) or getattr(current_user, 'id_profesor', None) or getattr(current_user, 'id_personal', None),
+        "nombre": current_user.nombre,
+        "apellido": current_user.apellido,
+        "correo": current_user.correo,
+        "rol": current_user.rol,
+        "url_foto": current_user.url_foto
     }
 
 @app.put("/api/v1/users/me", tags=["Perfil y Roles"])
 def update_profile(
     profile_data: ProfileUpdate, 
     db: Session = Depends(get_db),
-    current_user_id: str = Depends(get_current_user_id)
+    current_user: Alumno = Depends(get_current_user)
 ):
     """Actualiza los datos básicos del perfil."""
-    usuario, rol = buscar_usuario(db, current_user_id)
-    
-    if not usuario:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
     # Actualizamos solo los campos que vengan en la petición
-    if profile_data.nombre: usuario.nombre = profile_data.nombre
-    if profile_data.apellido: usuario.apellido = profile_data.apellido
-    if profile_data.correo: usuario.correo = profile_data.correo
+    if profile_data.nombre: current_user.nombre = profile_data.nombre
+    if profile_data.apellido: current_user.apellido = profile_data.apellido
+    if profile_data.correo: current_user.correo = profile_data.correo
 
     db.commit()
-    db.refresh(usuario)
+    db.refresh(current_user)
     
     return {"mensaje": "Perfil actualizado correctamente", "datos": profile_data}
 
@@ -131,31 +204,27 @@ def update_profile(
 def upload_profile_photo(
     file: UploadFile = File(...), 
     db: Session = Depends(get_db),
-    current_user_id: str = Depends(get_current_user_id)
+    current_user: Alumno = Depends(get_current_user)
 ):
     """Sube una foto de perfil y actualiza la URL en la BBDD."""
-    usuario, rol = buscar_usuario(db, current_user_id)
-    
-    if not usuario:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
+    user_id = getattr(current_user, 'id_alumno', None) or getattr(current_user, 'id_profesor', None) or getattr(current_user, 'id_personal', None)
     # AQUÍ IRÍA LA LÓGICA DE GCP (Google Cloud Storage):
     # 1. Subir el 'file' a tu bucket de GCP
     # 2. Obtener la URL pública de esa imagen
     # Para este ejemplo, simulamos la URL:
-    fake_gcp_url = f"https://storage.googleapis.com/tu-bucket/fotos/{current_user_id}_{file.filename}"
+    fake_gcp_url = f"https://storage.googleapis.com/tu-bucket/fotos/{user_id}_{file.filename}"
     
     # Guardamos la URL en la tabla correspondiente
-    usuario.url_foto = fake_gcp_url
+    current_user.url_foto = fake_gcp_url
     db.commit()
-    db.refresh(usuario)
+    db.refresh(current_user)
 
     return {"mensaje": "Foto subida con éxito", "url_foto": fake_gcp_url}
 
 @app.get("/api/v1/users/{user_id}", tags=["Perfil y Roles"])
 def get_user_profile(user_id: str, db: Session = Depends(get_db)):
     """Busca el perfil de CUALQUIER usuario del sistema por su ID."""
-    usuario, rol = buscar_usuario(db, user_id)
+    usuario = buscar_usuario(db, user_id)
     
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado en ninguna tabla")
@@ -165,9 +234,8 @@ def get_user_profile(user_id: str, db: Session = Depends(get_db)):
         "nombre": usuario.nombre,
         "apellido": usuario.apellido,
         "correo": usuario.correo,
-        "rol": rol,
-        "url_foto": usuario.url_foto,
-        "contrasena": usuario.contrasena
+        "rol": usuario.rol,
+        "url_foto": usuario.url_foto
     }
 
 # ==========================================
@@ -391,13 +459,14 @@ def get_enrolled_students(subject_id: str, db: Session = Depends(get_db)):
 @app.get("/api/v1/grades/me", response_model=List[GradeOut], tags=["Notas"])
 def get_my_grades(
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user: Alumno = Depends(get_current_user)
 ):
     """Obtiene todas las notas del alumno autenticado."""
+    if current_user.rol != 'alumno': raise HTTPException(status_code=403, detail="Solo los alumnos tienen notas.")
     resultados = db.query(RelAlumnoTarea, Tarea).join(
         Tarea, RelAlumnoTarea.id_tarea == Tarea.id_tarea
     ).filter(
-        RelAlumnoTarea.id_alumno == current_user_id
+        RelAlumnoTarea.id_alumno == current_user.id_alumno
     ).all()
     
     # Formateamos la salida
@@ -415,13 +484,14 @@ def get_my_grades(
 def get_my_grades_by_subject(
     subject_id: str, 
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user: Alumno = Depends(get_current_user)
 ):
     """Obtiene las notas del alumno filtradas por asignatura."""
+    if current_user.rol != 'alumno': raise HTTPException(status_code=403, detail="Solo los alumnos tienen notas.")
     resultados = db.query(RelAlumnoTarea, Tarea).join(
         Tarea, RelAlumnoTarea.id_tarea == Tarea.id_tarea
     ).filter(
-        RelAlumnoTarea.id_alumno == current_user_id,
+        RelAlumnoTarea.id_alumno == current_user.id_alumno,
         Tarea.id_asignatura == subject_id
     ).all()
     
@@ -511,19 +581,21 @@ class AttendanceMetricsOut(BaseModel):
 @app.get("/api/v1/attendance/me", response_model=List[AttendanceOut], tags=["Asistencia"])
 def get_my_attendance(
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user: Alumno = Depends(get_current_user)
 ):
     """Obtiene todo el historial de asistencia del alumno autenticado."""
-    registros = db.query(Asistencia).filter(Asistencia.id_alumno == current_user_id).all()
+    if current_user.rol != 'alumno': raise HTTPException(status_code=403, detail="Solo los alumnos tienen registros de asistencia.")
+    registros = db.query(Asistencia).filter(Asistencia.id_alumno == current_user.id_alumno).all()
     return registros
 
 @app.get("/api/v1/attendance/me/metrics", response_model=AttendanceMetricsOut, tags=["Asistencia"])
 def get_attendance_metrics(
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user: Alumno = Depends(get_current_user)
 ):
     """Calcula las métricas (% de asistencia) del alumno."""
-    registros = db.query(Asistencia).filter(Asistencia.id_alumno == current_user_id).all()
+    if current_user.rol != 'alumno': raise HTTPException(status_code=403, detail="Solo los alumnos tienen métricas de asistencia.")
+    registros = db.query(Asistencia).filter(Asistencia.id_alumno == current_user.id_alumno).all()
     
     total_clases = len(registros)
     if total_clases == 0:
@@ -629,12 +701,13 @@ class ReservationOut(ReservationBase):
 @app.get("/api/v1/reservations", response_model=List[ReservationOut], tags=["Reservas y Tutorías"])
 def list_my_reservations(
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user: Alumno = Depends(get_current_user)
 ):
     """Lista las reservas que he solicitado (como alumno) o que me han solicitado (como profesor)."""
+    user_id = getattr(current_user, 'id_alumno', None) or getattr(current_user, 'id_profesor', None)
     # Buscamos donde el usuario sea alumno o profesor
     reservas = db.query(Reserva).filter(
-        (Reserva.id_alumno == current_user_id) | (Reserva.id_profesor == current_user_id)
+        (Reserva.id_alumno == user_id) | (Reserva.id_profesor == user_id)
     ).all()
     return reservas
 
@@ -642,7 +715,7 @@ def list_my_reservations(
 def request_tutoring(
     reservation_in: ReservationCreate, 
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user: Alumno = Depends(get_current_user)
 ):
     """Solicita una nueva reserva o tutoría."""
     # Verificar si la franja existe y está disponible
@@ -650,9 +723,11 @@ def request_tutoring(
     if not franja or not franja.disponible:
         raise HTTPException(status_code=400, detail="La franja solicitada no existe o ya no está disponible.")
 
+    if current_user.rol != 'alumno': raise HTTPException(status_code=403, detail="Solo los alumnos pueden solicitar tutorías.")
+
     nueva_reserva = Reserva(
         id=str(uuid.uuid4()),
-        id_alumno=current_user_id,
+        id_alumno=current_user.id_alumno,
         id_profesor=reservation_in.id_profesor,
         id_franja=reservation_in.id_franja,
         fecha=reservation_in.fecha,
@@ -670,15 +745,15 @@ def update_reservation(
     reservation_id: str, 
     reservation_in: ReservationUpdate, 
     db: Session = Depends(get_db),
-    current_user_id: str = Depends(get_current_user_id)
+    current_user: Alumno = Depends(get_current_user)
 ):
     """Actualiza el estado de una reserva (Confirmar/Rechazar)."""
     reserva = db.query(Reserva).filter(Reserva.id == reservation_id).first()
     if not reserva:
         raise HTTPException(status_code=404, detail="Reserva no encontrada")
         
-    # Validar que solo el profesor implicado puede cambiar el estado
-    if reserva.id_profesor != current_user_id:
+    # Validar que solo el profesor implicado puede cambiar el estado (y que el usuario actual sea un profesor)
+    if current_user.rol != 'profesor' or reserva.id_profesor != current_user.id_profesor:
         raise HTTPException(status_code=403, detail="No tienes permiso para gestionar esta reserva")
 
     reserva.estado = reservation_in.estado
@@ -750,11 +825,12 @@ class NotificationSettingsOut(BaseModel):
 @app.get("/api/v1/notifications", response_model=List[NotificationOut], tags=["Notificaciones"])
 def get_notifications(
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user: Alumno = Depends(get_current_user)
 ):
     """Obtiene el listado de notificaciones del usuario."""
+    user_id = getattr(current_user, 'id_alumno', None) or getattr(current_user, 'id_profesor', None) or getattr(current_user, 'id_personal', None)
     notificaciones = db.query(Notificacion).filter(
-        Notificacion.id_usuario == current_user_id
+        Notificacion.id_usuario == user_id
     ).order_by(Notificacion.fecha_creacion.desc()).all()
     
     return notificaciones
@@ -763,12 +839,13 @@ def get_notifications(
 def mark_noti_as_read(
     notis_id: str, 
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user: Alumno = Depends(get_current_user)
 ):
     """Marca una notificación específica como leída."""
+    user_id = getattr(current_user, 'id_alumno', None) or getattr(current_user, 'id_profesor', None) or getattr(current_user, 'id_personal', None)
     notificacion = db.query(Notificacion).filter(
         Notificacion.id == notis_id,
-        Notificacion.id_usuario == current_user_id 
+        Notificacion.id_usuario == user_id
     ).first()
     
     if not notificacion:
@@ -783,16 +860,17 @@ def mark_noti_as_read(
 @app.get("/api/v1/notifications/settings", response_model=NotificationSettingsOut, tags=["Notificaciones"])
 def get_notification_settings(
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user: Alumno = Depends(get_current_user)
 ):
     """Obtiene las preferencias de avisos del usuario."""
+    user_id = getattr(current_user, 'id_alumno', None) or getattr(current_user, 'id_profesor', None) or getattr(current_user, 'id_personal', None)
     config = db.query(ConfiguracionNotificacion).filter(
-        ConfiguracionNotificacion.id_usuario == current_user_id
+        ConfiguracionNotificacion.id_usuario == user_id
     ).first()
     
     # Si no existe configuración, devolvemos una por defecto (todo activado)
     if not config:
-        config = ConfiguracionNotificacion(id_usuario=current_user_id)
+        config = ConfiguracionNotificacion(id_usuario=user_id)
         db.add(config)
         db.commit()
         db.refresh(config)
@@ -830,16 +908,17 @@ class EmailOut(BaseModel):
 def list_emails(
     folder: str = "inbox", 
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user: Alumno = Depends(get_current_user)
 ):
     """Lista los correos. Permite filtrar por 'inbox' (recibidos) o 'sent' (enviados)."""
+    user_id = getattr(current_user, 'id_alumno', None) or getattr(current_user, 'id_profesor', None) or getattr(current_user, 'id_personal', None)
     if folder == "inbox":
         correos = db.query(Correo).filter(
-            Correo.id_destinatario == current_user_id
+            Correo.id_destinatario == user_id
         ).order_by(Correo.fecha_envio.desc()).all()
     elif folder == "sent":
         correos = db.query(Correo).filter(
-            Correo.id_remitente == current_user_id
+            Correo.id_remitente == user_id
         ).order_by(Correo.fecha_envio.desc()).all()
     else:
         raise HTTPException(status_code=400, detail="Carpeta no válida. Usa 'inbox' o 'sent'.")
@@ -850,14 +929,15 @@ def list_emails(
 def send_email(
     email_in: EmailCreate, 
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user: Alumno = Depends(get_current_user)
 ):
     """Envía un nuevo correo interno a otro usuario."""
     # Aquí podríamos añadir una validación para comprobar que el id_destinatario existe en la BBDD
+    user_id = getattr(current_user, 'id_alumno', None) or getattr(current_user, 'id_profesor', None) or getattr(current_user, 'id_personal', None)
     
     nuevo_correo = Correo(
         id=str(uuid.uuid4()),
-        id_remitente=current_user_id, # El remitente es el usuario que hace la petición
+        id_remitente=user_id, # El remitente es el usuario que hace la petición
         id_destinatario=email_in.id_destinatario,
         asunto=email_in.asunto,
         cuerpo=email_in.cuerpo
@@ -873,20 +953,21 @@ def send_email(
 def read_email(
     email_id: str, 
     db: Session = Depends(get_db), 
-    current_user_id: str = Depends(get_current_user_id)
+    current_user: Alumno = Depends(get_current_user)
 ):
     """Lee un correo específico. Si eres el destinatario, se marca como leído automáticamente."""
+    user_id = getattr(current_user, 'id_alumno', None) or getattr(current_user, 'id_profesor', None) or getattr(current_user, 'id_personal', None)
     correo = db.query(Correo).filter(Correo.id == email_id).first()
     
     if not correo:
         raise HTTPException(status_code=404, detail="Correo no encontrado")
         
     # Seguridad: solo el remitente o el destinatario pueden leer el correo
-    if correo.id_destinatario != current_user_id and correo.id_remitente != current_user_id:
+    if correo.id_destinatario != user_id and correo.id_remitente != user_id:
         raise HTTPException(status_code=403, detail="No tienes permiso para leer este correo")
         
     # Si el usuario actual es el destinatario y no lo había leído, lo marcamos como leído
-    if correo.id_destinatario == current_user_id and not correo.leido:
+    if correo.id_destinatario == user_id and not correo.leido:
         correo.leido = True
         db.commit()
         db.refresh(correo)
