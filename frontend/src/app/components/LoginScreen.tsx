@@ -1,24 +1,38 @@
 import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { login, getMyProfile, mapRol } from '../api/client';
 
 export function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock role detection based on email
-    if (email.includes('admin')) {
-      localStorage.setItem('userRole', 'admin');
-    } else if (email.includes('profesor')) {
-      localStorage.setItem('userRole', 'professor');
-    } else {
-      localStorage.setItem('userRole', 'student');
+    setError('');
+    setLoading(true);
+    try {
+      const tokenData = await login(email, password);
+      localStorage.setItem('token', tokenData.access_token);
+
+      const profile = await getMyProfile();
+      localStorage.setItem('userRole', mapRol(profile.rol));
+      localStorage.setItem('userId', profile.id);
+      localStorage.setItem('userName', `${profile.nombre} ${profile.apellido}`);
+      localStorage.setItem('userEmail', profile.correo);
+      if (profile.url_foto) localStorage.setItem('userPhoto', profile.url_foto);
+
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
+    } finally {
+      setLoading(false);
     }
-    navigate('/dashboard');
   };
 
   return (
@@ -48,6 +62,8 @@ export function LoginScreen() {
             <input
               type={showPassword ? 'text' : 'password'}
               placeholder="Contraseña"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 border-b-2 border-gray-300 bg-transparent focus:outline-none focus:border-[#008899] placeholder:text-gray-400 pr-10"
             />
             <button
@@ -77,12 +93,18 @@ export function LoginScreen() {
             </button>
           </div>
 
+          {/* Error message */}
+          {error && (
+            <p className="text-red-500 text-sm text-center">{error}</p>
+          )}
+
           {/* Login Button */}
           <button
             type="submit"
-            className="w-full bg-[#008899] text-white py-3 rounded-lg mt-6 hover:bg-[#007788] transition-colors"
+            disabled={loading}
+            className="w-full bg-[#008899] text-white py-3 rounded-lg mt-6 hover:bg-[#007788] transition-colors disabled:opacity-60"
           >
-            Login
+            {loading ? 'Entrando...' : 'Login'}
           </button>
         </form>
       </div>

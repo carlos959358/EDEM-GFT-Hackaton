@@ -25,58 +25,19 @@ export const router = createBrowserRouter([
     path: '/',
     Component: Layout,
     children: [
-      {
-        path: 'dashboard',
-        Component: DashboardScreen,
-      },
-      {
-        path: 'calendar',
-        Component: CalendarScreen,
-      },
-      {
-        path: 'profile',
-        Component: ProfileScreen,
-      },
+      { path: 'dashboard',                                    Component: DashboardScreen      },
+      { path: 'calendar',                                     Component: CalendarScreen       },
+      { path: 'profile',                                      Component: ProfileScreen        },
+      { path: 'rooms',                                        Component: RoomBookingScreen    },
+      { path: 'chat',                                         Component: ChatScreen           },
+      { path: 'grades',                                       Component: GradesScreen         },
+      { path: 'attendance',                                   Component: AttendanceScreen     },
+      { path: 'notifications',                                Component: NotificationsScreen  },
+      { path: 'courses',                                      Component: CoursesScreen        },
+      { path: 'courses/:courseId',                            Component: CourseDetailScreen   },
+      { path: 'courses/:courseId/subjects/:subjectId/grade',  Component: GradingScreen        },
+      { path: 'teacher/grades',                               Component: TeacherGradesScreen  },
+      { path: 'class/:classId/attendance',                    Component: ClassAttendanceScreen},
     ],
-  },
-  {
-    path: 'rooms',
-    Component: RoomBookingScreen,
-  },
-  {
-    path: 'chat',
-    Component: ChatScreen,
-  },
-  {
-    path: 'grades',
-    Component: GradesScreen,
-  },
-  {
-    path: 'attendance',
-    Component: AttendanceScreen,
-  },
-  {
-    path: 'notifications',
-    Component: NotificationsScreen,
-  },
-  {
-    path: 'courses',
-    Component: CoursesScreen,
-  },
-  {
-    path: 'courses/:courseId',
-    Component: CourseDetailScreen,
-  },
-  {
-    path: 'courses/:courseId/subjects/:subjectId/grade',
-    Component: GradingScreen,
-  },
-  {
-    path: 'teacher/grades',
-    Component: TeacherGradesScreen
-  },
-  {
-    path: 'class/:classId/attendance',
-    Component: ClassAttendanceScreen,
   },
 ]);
