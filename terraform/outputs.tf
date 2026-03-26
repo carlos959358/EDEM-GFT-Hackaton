@@ -18,6 +18,11 @@ output "frontend_url" {
   value       = google_cloud_run_v2_service.frontend.uri
 }
 
+output "backend_url" {
+  description = "Backend Cloud Run URL"
+  value       = google_cloud_run_v2_service.backend.uri
+}
+
 output "database_connection" {
   description = "Cloud SQL connection name"
   value       = google_sql_database_instance.edem_db_instance.connection_name
@@ -33,7 +38,17 @@ output "database_name" {
   value       = google_sql_database.edem_database.name
 }
 
-output "service_account_email" {
-  description = "Cloud Run service account email"
-  value       = google_service_account.cloud_run_sa.email
+output "frontend_sa_email" {
+  description = "Frontend Cloud Run service account email"
+  value       = google_service_account.frontend_sa.email
+}
+
+output "backend_sa_email" {
+  description = "Backend Cloud Run service account email"
+  value       = google_service_account.backend_sa.email
+}
+
+output "firestore_sa_email" {
+  description = "Firestore service account email"
+  value       = google_service_account.firestore_sa.email
 }

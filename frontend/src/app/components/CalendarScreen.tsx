@@ -7,6 +7,7 @@ type EventType = 'clase' | 'entrega' | 'examen';
 
 interface CalEvent {
   id: number;
+  subjectCode: string;
   type: EventType;
   subject: string;
   day: number; // 0=LUN, 1=MAR, 2=MIÉ, 3=JUE, 4=VIE, 5=SÁB
@@ -34,23 +35,23 @@ const weekDays = [
 
 const allEvents: CalEvent[] = [
   // Lunes 23
-  { id: 1,  type: 'clase',   subject: 'Big Data',             day: 0, startHour: 10,   endHour: 12   },
-  { id: 2,  type: 'clase',   subject: 'Análisis de Datos',    day: 0, startHour: 16,   endHour: 18   },
+  { id: 1,  type: 'clase',   subject: 'Big Data & Analytics', subjectCode: 'bda-301', day: 0, startHour: 10,   endHour: 12   },
+  { id: 2,  type: 'clase',   subject: 'Análisis de Datos',    subjectCode: 'ada-303', day: 0, startHour: 16,   endHour: 18   },
   // Martes 24
-  { id: 3,  type: 'clase',   subject: 'Marketing Digital',    day: 1, startHour: 9,    endHour: 11   },
-  { id: 4,  type: 'clase',   subject: 'Finanzas',             day: 1, startHour: 14,   endHour: 16   },
+  { id: 3,  type: 'clase',   subject: 'Marketing Digital',    subjectCode: 'mkt-201', day: 1, startHour: 9,    endHour: 11   },
+  { id: 4,  type: 'clase',   subject: 'Finanzas Corporativas',subjectCode: 'fin-302', day: 1, startHour: 14,   endHour: 16   },
   // Miércoles 25 (hoy)
-  { id: 5,  type: 'clase',   subject: 'Estrategia Empr.',     day: 2, startHour: 10,   endHour: 12   },
-  { id: 6,  type: 'entrega', subject: 'Entrega: Proy. Big Data', day: 2, startHour: 13, endHour: 13.5 },
+  { id: 5,  type: 'clase',   subject: 'Estrategia Empresarial',subjectCode: 'est-401', day: 2, startHour: 10,   endHour: 12   },
+  { id: 6,  type: 'entrega', subject: 'Entrega: Proy. Big Data', subjectCode: 'bda-301', day: 2, startHour: 13, endHour: 13.5 },
   // Jueves 26
-  { id: 7,  type: 'clase',   subject: 'Big Data',             day: 3, startHour: 9,    endHour: 11   },
-  { id: 8,  type: 'examen',  subject: 'Examen Finanzas',      day: 3, startHour: 12,   endHour: 14   },
-  { id: 9,  type: 'clase',   subject: 'Coaching & Liderazgo', day: 3, startHour: 16,   endHour: 18   },
+  { id: 7,  type: 'clase',   subject: 'Big Data & Analytics', subjectCode: 'bda-301', day: 3, startHour: 9,    endHour: 11   },
+  { id: 8,  type: 'examen',  subject: 'Examen Finanzas',      subjectCode: 'fin-302', day: 3, startHour: 12,   endHour: 14   },
+  { id: 9,  type: 'clase',   subject: 'Coaching & Liderazgo', subjectCode: 'coa-201', day: 3, startHour: 16,   endHour: 18   },
   // Viernes 27
-  { id: 10, type: 'clase',   subject: 'Marketing Digital',    day: 4, startHour: 10,   endHour: 12   },
-  { id: 11, type: 'entrega', subject: 'Entrega: Informe Mkt', day: 4, startHour: 13,   endHour: 13.5 },
+  { id: 10, type: 'clase',   subject: 'Marketing Digital',    subjectCode: 'mkt-201', day: 4, startHour: 10,   endHour: 12   },
+  { id: 11, type: 'entrega', subject: 'Entrega: Informe Mkt', subjectCode: 'mkt-201', day: 4, startHour: 13,   endHour: 13.5 },
   // Sábado 28
-  { id: 12, type: 'clase',   subject: 'Finanzas',             day: 5, startHour: 10,   endHour: 12   },
+  { id: 12, type: 'clase',   subject: 'Finanzas Corporativas',subjectCode: 'fin-302', day: 5, startHour: 10,   endHour: 12   },
 ];
 
 // March 2026: March 1 = Sunday → Monday-first grid: 6 leading nulls
@@ -130,6 +131,8 @@ export function CalendarScreen() {
   const isStudent = userRole === 'student';
 
   const hours = Array.from({ length: 12 }, (_, i) => i + START_HOUR); // 8–19
+
+  const isCoordinator = userRole === 'admin';
 
   // Which days to display in time-grid views
   const getDisplayDays = () => {
@@ -287,7 +290,6 @@ export function CalendarScreen() {
             </div>
           </div>
         )}
-
         {/* ── DAY SELECTOR (only for "Día" mode) ── */}
         {viewMode === 'dia' && (
           <div className="px-4 flex-shrink-0">
@@ -309,7 +311,6 @@ export function CalendarScreen() {
             </div>
           </div>
         )}
-
         {/* ── TIME GRID (semana, jus, dia) ── */}
         {viewMode !== 'mes' && (
           <div className="flex flex-col flex-1 overflow-hidden">
@@ -388,9 +389,12 @@ export function CalendarScreen() {
                     const height  = Math.max((event.endHour - event.startHour) * HOUR_HEIGHT - 3, 22);
                     const Icon    = EVENT_ICONS[event.type];
                     const styles  = EVENT_STYLES[event.type];
+                    const isClickable = isCoordinator && event.type === 'clase';
+
+                    const EventComponent = isClickable ? 'button' : 'div';
 
                     return (
-                      <div
+                      <EventComponent
                         key={event.id}
                         onClick={() => isStudent && setSelectedEvent(event)}
                         className={`absolute rounded-lg px-1.5 py-1 overflow-hidden shadow-sm ${isStudent ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''} ${styles.bg} ${styles.text}`}
@@ -402,7 +406,9 @@ export function CalendarScreen() {
                         }}
                       >
                         <div className="flex items-start gap-1">
-                          <Icon size={10} className="mt-0.5 flex-shrink-0 opacity-90" />
+                          <div className="w-3 flex-shrink-0">
+                            <Icon size={10} className="mt-0.5 opacity-90" />
+                          </div>
                           <div className="min-w-0">
                             <p
                               className="text-xs truncate leading-tight"
@@ -417,7 +423,7 @@ export function CalendarScreen() {
                             )}
                           </div>
                         </div>
-                      </div>
+                      </EventComponent>
                     );
                   })}
                 </div>

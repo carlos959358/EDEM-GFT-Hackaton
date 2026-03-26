@@ -10,9 +10,13 @@ from datetime import datetime, date
 from typing import List
 from dotenv import load_dotenv
 
-# Importamos los modelos de la BBDD que creamos antes
-# Asegúrate de tenerlos en un archivo llamado models.py
-from models import Alumno, Profesor, PersonalEdem, Base
+# Importamos todos los modelos de la BBDD desde models.py
+from models import (
+    Alumno, Profesor, PersonalEdem, Base, Grupo, Asignatura, Tarea, 
+    Asistencia, RelPersonalGrupos, RelAlumnosGrupos, RelAsignaturasGrupos,
+    RelProfesoresAsignaturas, RelAlumnoTarea, Evento, FranjaTutoria, 
+    Reserva, Notificacion, ConfiguracionNotificacion, Correo
+)
 from config import settings
 
 # Cargamos las variables de entorno desde el archivo .env
@@ -97,7 +101,8 @@ def get_my_profile(
         "apellido": usuario.apellido,
         "correo": usuario.correo,
         "rol": rol,
-        "url_foto": usuario.url_foto
+        "url_foto": usuario.url_foto,
+        "contrasena": usuario.contrasena
     }
 
 @app.put("/api/v1/users/me", tags=["Perfil y Roles"])
@@ -167,18 +172,6 @@ def get_user_profile(user_id: str, db: Session = Depends(get_db)):
 # ==========================================
 # 2. CALENDARIO
 # ==========================================
-
-class Evento(Base):
-    __tablename__ = 'eventos'
-    id = Column(String, primary_key=True, index=True)
-    tipo = Column(String) # 'class', 'exam', 'delivery'
-    titulo = Column(String)
-    id_asignatura = Column(String)
-    aula = Column(String)
-    id_profesor = Column(String)
-    fecha_inicio = Column(DateTime)
-    fecha_fin = Column(DateTime)
-    descripcion = Column(String)
 
 class EventBase(BaseModel):
     tipo: str # 'class', 'exam', 'delivery'
