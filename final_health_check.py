@@ -70,21 +70,20 @@ class FinalHealthChecker:
         print(f"🎯 URL Base: {self.base_url}")
         print()
         
-        # Endpoints a comprobar
+        # Endpoints a comprobar (paths correctos con /api/v1/)
         endpoints = [
             ("FastAPI Docs", "/docs"),
             ("Root Endpoint", "/"),
-            ("Perfil Usuario", "/perfil/ALU001"),  # Probamos con un ID específico
-            ("Calendario Eventos", "/calendario/eventos"),
-            ("Asignaturas", "/asignaturas"),
-            ("Notas Alumno", "/notas/ALU001"),
-            ("Asistencia", "/asistencia/ALU001"),
-            ("Métricas Asistencia", "/asistencia/ALU001/metricas"),
-            # Intentemos algunos endpoints adicionales que pueden existir
-            ("Health Check", "/health"),
-            ("API Info", "/info"),
-            ("Usuarios", "/usuarios"),
-            ("Eventos", "/eventos"),
+            ("Perfil Usuario", "/api/v1/users/me"),
+            ("Calendario Eventos", "/api/v1/calendar/events"),
+            ("Asignaturas", "/api/v1/subjects"),
+            ("Notas", "/api/v1/grades/me"),
+            ("Asistencia", "/api/v1/attendance/me"),
+            ("Métricas Asistencia", "/api/v1/attendance/me/metrics"),
+            # Endpoints de una asignatura específica
+            ("Notas por Asignatura", "/api/v1/grades/me/subjects/ASIG-001"),
+            ("Estudiantes de Asignatura", "/api/v1/subjects/ASIG-001/students"),
+            ("Crear Evento", "/api/v1/calendar/events"),  # POST test
         ]
         
         results = []
