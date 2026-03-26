@@ -20,6 +20,7 @@ build/
 .idea/
 *.swp
 *.swo
+.devcontainer/
 
 # OS files
 .DS_Store
@@ -39,3 +40,4 @@ spa-datajuniorsprogram-sdb-001-899009cc32ac.json
 *.tfstate.backup
 *.tfplan
 .terraform.lock.hcl
+*.tfvars

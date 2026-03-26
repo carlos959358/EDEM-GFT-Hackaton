@@ -17,7 +17,7 @@ export function DashboardScreen() {
       <div className="bg-[#008899] px-6 pt-12 pb-6 rounded-b-3xl">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-white text-2xl mb-1" style={{ fontWeight: 300 }}>EDEM</h1>
+            <h1 className="text-white text-2xl mb-1" style={{ fontWeight: 300, fontFamily: 'Didot, Bodoni, serif' }}>EDEM</h1>
             <p className="text-white text-xs opacity-90">EDEM STUDENT HUB</p>
           </div>
           <Bell className="text-white" size={24} onClick={() => navigate('/notifications')}/>

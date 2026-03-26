@@ -1,7 +1,7 @@
 variable "project_id" {
   description = "GCP project ID"
   type        = string
-  default     = "spa-datajuniorsprogram-sdb-001"
+  default     = "edem-hackathon-2026"
 }
 
 variable "region" {
@@ -10,8 +10,19 @@ variable "region" {
   default     = "europe-west1"
 }
 
-variable "credentials_file" {
-  description = "Path to the GCP service account key file"
+variable "db_user" {
+  description = "Usuario administrador de la base de datos"
   type        = string
-  default     = "../spa-datajuniorsprogram-sdb-001-899009cc32ac.json"
+}
+
+variable "db_password" {
+  description = "Contraseña del administrador de la base de datos"
+  type        = string
+  sensitive   = true
+}
+
+variable "firestore_location" {
+  description = "Firestore database location"
+  type        = string
+  default     = "europe-west1"
 }
