@@ -5,10 +5,12 @@ import { CalendarScreen } from './components/CalendarScreen';
 import { RoomBookingScreen } from './components/RoomBookingScreen';
 import { ChatScreen } from './components/ChatScreen';
 import { ProfileScreen } from './components/ProfileScreen';
-import { TasksScreen } from './components/TasksScreen';
-import { SettingsScreen } from './components/SettingsScreen';
 import { GradesScreen } from './components/GradesScreen';
 import { AttendanceScreen } from './components/AttendanceScreen';
+import { NotificationsScreen } from './components/NotificationsScreen';
+import { CoursesScreen } from './components/CoursesScreen';
+import { CourseDetailScreen } from './components/CourseDetailScreen';
+import { GradingScreen } from './components/GradingScreen';
 import { Layout } from './components/Layout';
 
 export const router = createBrowserRouter([
@@ -29,33 +31,41 @@ export const router = createBrowserRouter([
         Component: CalendarScreen,
       },
       {
-        path: 'rooms',
-        Component: RoomBookingScreen,
-      },
-      {
-        path: 'chat',
-        Component: ChatScreen,
-      },
-      {
         path: 'profile',
         Component: ProfileScreen,
       },
-      {
-        path: 'tasks',
-        Component: TasksScreen,
-      },
-      {
-        path: 'settings',
-        Component: SettingsScreen,
-      },
-      {
-        path: 'grades',
-        Component: GradesScreen,
-      },
-      {
-        path: 'attendance',
-        Component: AttendanceScreen,
-      },
     ],
+  },
+  {
+    path: 'rooms',
+    Component: RoomBookingScreen,
+  },
+  {
+    path: 'chat',
+    Component: ChatScreen,
+  },
+  {
+    path: 'grades',
+    Component: GradesScreen,
+  },
+  {
+    path: 'attendance',
+    Component: AttendanceScreen,
+  },
+  {
+    path: 'notifications',
+    Component: NotificationsScreen,
+  },
+  {
+    path: 'courses',
+    Component: CoursesScreen,
+  },
+  {
+    path: 'courses/:courseId',
+    Component: CourseDetailScreen,
+  },
+  {
+    path: 'courses/:courseId/subjects/:subjectId/grade',
+    Component: GradingScreen,
   },
 ]);

@@ -1,19 +1,26 @@
 import { Bell } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 export function DashboardScreen() {
   const navigate = useNavigate();
+  const [userRole, setUserRole] = useState<string | null>(null);
 
+  useEffect(() => {
+    // On component mount, check the role from localStorage
+    setUserRole(localStorage.getItem('userRole'));
+  }, []);
+  
   return (
     <div className="min-h-screen bg-[#f5f5f5] pb-20">
       {/* Header */}
       <div className="bg-[#008899] px-6 pt-12 pb-6 rounded-b-3xl">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-white text-2xl mb-1" style={{ fontWeight: 300 }}>EDEM</h1>
+            <h1 className="text-white text-2xl mb-1" style={{ fontWeight: 300, fontFamily: 'Didot, Bodoni, serif' }}>EDEM</h1>
             <p className="text-white text-xs opacity-90">EDEM STUDENT HUB</p>
           </div>
-          <Bell className="text-white" size={24} />
+          <Bell className="text-white" size={24} onClick={() => navigate('/notifications')}/>
         </div>
       </div>
 
@@ -56,63 +63,27 @@ export function DashboardScreen() {
           </button>
         </div>
 
-        {/* Chat con... */}
-        <div 
-          className="bg-white rounded-xl p-4 mb-4 shadow-sm cursor-pointer"
-          onClick={() => navigate('/chat')}
-        >
-          <h3 className="text-[#008899] mb-2" style={{ fontWeight: 600 }}>CHAT CON...</h3>
-          <p className="text-gray-600 text-sm mb-2">Dr. L. García (MA)</p>
-          <p className="text-gray-500 text-xs">¿A qué hora nos vemos el lunes?</p>
-        </div>
-
-        {/* Próximos Eventos */}
-        <div className="bg-white rounded-xl p-4 mb-4 shadow-sm">
-          <h3 className="text-[#008899] mb-3" style={{ fontWeight: 600 }}>PRÓXIMOS EVENTOS</h3>
-          <div className="space-y-2">
-            <div className="flex items-center text-sm text-gray-600">
-              <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
-              Jue 9-Abr (9h)
-            </div>
-          </div>
-        </div>
-
-        {/* Validar Clases */}
-        <div className="bg-white rounded-xl p-4 mb-4 shadow-sm">
-          <h3 className="text-[#008899] mb-2" style={{ fontWeight: 600 }}>VALIDAR CLASES</h3>
-          <p className="text-gray-600 text-sm">Clases no validadas</p>
-        </div>
-
-        {/* Aula Inmersiva */}
-        <div className="bg-gradient-to-br from-blue-900 to-blue-700 rounded-xl p-4 mb-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="bg-white/20 rounded-full p-2">
-              <div className="w-6 h-6 bg-white/40 rounded"></div>
-            </div>
-            <h3 className="text-white" style={{ fontWeight: 600 }}>AULA INMERSIVA</h3>
-          </div>
-          <p className="text-white text-xs opacity-90">Entra en la experiencia</p>
-        </div>
-
         {/* Notas & Asistencia */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div
-            className="bg-white rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => navigate('/grades')}
-          >
-            <h3 className="text-[#008899] mb-1" style={{ fontWeight: 600 }}>MIS NOTAS</h3>
-            <p className="text-gray-500 text-xs">Media: 7.83</p>
-            <p className="text-2xl mt-1" style={{ fontWeight: 800, color: '#008899' }}>📊</p>
+        {userRole === 'student' && (
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div
+              className="bg-white rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigate('/grades')}
+            >
+              <h3 className="text-[#008899] mb-1" style={{ fontWeight: 600 }}>MIS NOTAS</h3>
+              <p className="text-gray-500 text-xs">Media: 7.83</p>
+              <p className="text-2xl mt-1" style={{ fontWeight: 800, color: '#008899' }}>📊</p>
+            </div>
+            <div
+              className="bg-white rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigate('/attendance')}
+            >
+              <h3 className="text-[#008899] mb-1" style={{ fontWeight: 600 }}>ASISTENCIA</h3>
+              <p className="text-gray-500 text-xs">Global: 89%</p>
+              <p className="text-2xl mt-1" style={{ fontWeight: 800, color: '#008899' }}>📋</p>
+            </div>
           </div>
-          <div
-            className="bg-white rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => navigate('/attendance')}
-          >
-            <h3 className="text-[#008899] mb-1" style={{ fontWeight: 600 }}>ASISTENCIA</h3>
-            <p className="text-gray-500 text-xs">Global: 89%</p>
-            <p className="text-2xl mt-1" style={{ fontWeight: 800, color: '#008899' }}>📋</p>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

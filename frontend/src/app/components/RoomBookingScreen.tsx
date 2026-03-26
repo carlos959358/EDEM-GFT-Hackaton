@@ -6,7 +6,7 @@ export function RoomBookingScreen() {
       {/* Header */}
       <div className="px-6 pt-12 pb-6">
         <div>
-          <h1 className="text-white text-xl mb-1" style={{ fontWeight: 300 }}>EDEM</h1>
+          <h1 className="text-white text-xl mb-1" style={{ fontWeight: 300, fontFamily: 'Didot, Bodoni, serif' }}>EDEM</h1>
           <p className="text-white text-xs opacity-90">EDEM STUDENT HUB</p>
         </div>
       </div>

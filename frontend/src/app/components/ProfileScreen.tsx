@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Camera, Edit2, Check, X, Mail, Linkedin,
   GraduationCap, BadgeCheck, Hash,
@@ -19,24 +19,34 @@ const ROLE_COLORS: Record<Role, { bg: string; text: string }> = {
 export function ProfileScreen() {
   const navigate = useNavigate();
   const [photoUrl, setPhotoUrl]         = useState(DEFAULT_PHOTO);
+  const [userRole, setUserRole]         = useState<string | null>(null);
   const [isEditingContact, setEditContact] = useState(false);
 
+  useEffect(() => {
+    setUserRole(localStorage.getItem('userRole'));
+  }, []);
+
+  const isAdmin = userRole === 'admin';
+
   // Editable fields
-  const [email,    setEmail]    = useState('paco.perez@edem.es');
-  const [linkedin, setLinkedin] = useState('linkedin.com/in/paco-perez');
+  const [email,    setEmail]    = useState(isAdmin ? 'admin@admin.es' : 'paco.perez@edem.es');
+  const [linkedin, setLinkedin] = useState(isAdmin ? 'linkedin.com/in/edem' : 'linkedin.com/in/paco-perez');
 
   // Temp state while editing
   const [tmpEmail,    setTmpEmail]    = useState(email);
   const [tmpLinkedin, setTmpLinkedin] = useState(linkedin);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  
   // Fixed profile data
-  const nombre   = 'Paco';
-  const apellido = 'Pérez';
-  const curso    = 'Grado ADE + DATA · 2º Curso';
-  const matricula = '#999';
-  const role: Role = 'Alumno';
+  const nombre   = isAdmin ? 'Admin' : 'Paco';
+  const apellido = isAdmin ? 'User' : 'Pérez';
+  const curso    = isAdmin ? 'Personal de EDEM' : 'Grado ADE + DATA · 2º Curso';
+  const matricula = isAdmin ? '#001' : '#999';
+  const role: Role = isAdmin ? 'Coordinador' : 'Alumno';
+  useEffect(() => {
+    setEmail(isAdmin ? 'admin@admin.es' : 'paco.perez@edem.es');
+  }, [isAdmin]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -69,7 +79,7 @@ export function ProfileScreen() {
     <div className="min-h-screen bg-[#f5f5f5] pb-20">
       {/* ── Header ── */}
       <div className="bg-[#008899] px-6 pt-12 pb-28 rounded-b-3xl relative">
-        <h1 className="text-white text-xl mb-1" style={{ fontWeight: 300 }}>EDEM</h1>
+        <h1 className="text-white text-xl mb-1" style={{ fontWeight: 300, fontFamily: 'Didot, Bodoni, serif' }}>EDEM</h1>
         <p className="text-white text-xs opacity-80 mb-6">EDEM STUDENT HUB</p>
 
         {/* Avatar */}
@@ -232,20 +242,35 @@ export function ProfileScreen() {
         </div>
 
         {/* Quick access buttons */}
-        <div className="grid grid-cols-2 gap-3">
+        {isAdmin ? (
+          <div className="pt-2">
+            <button
+              onClick={() => navigate('/courses')}
+              className="bg-[#008899] text-white py-3 rounded-2xl text-sm w-full hover:bg-[#007788] transition-colors"
+              style={{ fontWeight: 600 }}
+            >
+              📚 Mis Cursos
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => navigate('/grades')} className="bg-[#008899] text-white py-3 rounded-2xl text-sm hover:bg-[#007788] transition-colors" style={{ fontWeight: 600 }}>
+              📊 Mis Notas
+            </button>
+            <button onClick={() => navigate('/attendance')} className="bg-white text-[#008899] border border-[#008899] py-3 rounded-2xl text-sm hover:bg-[#008899]/5 transition-colors" style={{ fontWeight: 600 }}>
+              📋 Asistencia
+            </button>
+          </div>
+        )}
+
+        {/* Logout Button */}
+        <div className="pt-3">
           <button
-            onClick={() => navigate('/grades')}
-            className="bg-[#008899] text-white py-3 rounded-2xl text-sm hover:bg-[#007788] transition-colors"
+            onClick={() => navigate('/')}
+            className="bg-white text-red-600 border border-red-300 py-3 rounded-2xl text-sm w-full hover:bg-red-50 transition-colors"
             style={{ fontWeight: 600 }}
           >
-            📊 Mis Notas
-          </button>
-          <button
-            onClick={() => navigate('/attendance')}
-            className="bg-white text-[#008899] border border-[#008899] py-3 rounded-2xl text-sm hover:bg-[#008899]/5 transition-colors"
-            style={{ fontWeight: 600 }}
-          >
-            📋 Asistencia
+            🚪 Cerrar Sesión
           </button>
         </div>
       </div>
