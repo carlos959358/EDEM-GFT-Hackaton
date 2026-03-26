@@ -262,6 +262,17 @@ export function ProfileScreen() {
             </button>
           </div>
         )}
+
+        {/* Logout Button */}
+        <div className="pt-3">
+          <button
+            onClick={() => navigate('/')}
+            className="bg-white text-red-600 border border-red-300 py-3 rounded-2xl text-sm w-full hover:bg-red-50 transition-colors"
+            style={{ fontWeight: 600 }}
+          >
+            🚪 Cerrar Sesión
+          </button>
+        </div>
       </div>
     </div>
   );
