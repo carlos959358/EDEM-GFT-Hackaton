@@ -37,6 +37,15 @@ export function ProfileScreen() {
   // Editable fields
   const [email, setEmail] = useState(MOCK_PROFILE.correo);
   const [linkedin, setLinkedin] = useState('linkedin.com/in/paco-perez');
+  useEffect(() => {
+    setUserRole(localStorage.getItem('userRole'));
+  }, []);
+  const isAdmin = userRole === 'admin';
+  const isProfessor = userRole === 'professor';
+
+  // Editable fields
+  const [email,    setEmail]    = useState('');
+  const [linkedin, setLinkedin] = useState('');
 
   // Temp state while editing
   const [tmpEmail, setTmpEmail] = useState(email);
@@ -67,6 +76,21 @@ export function ProfileScreen() {
   const matricula = `#${profile.id}`;
   const rolLabel = profile.rol.charAt(0).toUpperCase() + profile.rol.slice(1);
   const role = (ROLE_COLORS[rolLabel as Role] ? rolLabel : 'Alumno') as Role;
+  // Fixed profile data
+  const nombre   = isAdmin ? 'Admin' : isProfessor ? 'Luis' : 'Paco';
+  const apellido = isAdmin ? 'User' : isProfessor ? 'García' : 'Pérez';
+  const curso    = isAdmin ? 'Personal de EDEM' : isProfessor ? 'Profesor de Marketing y Finanzas' : 'Grado ADE + DATA · 2º Curso';
+  const matricula = isAdmin ? '#001' : isProfessor ? '#P015' : '#999';
+  const role: Role = isAdmin ? 'Coordinador' : isProfessor ? 'Profesor' : 'Alumno';
+
+  useEffect(() => {
+    const newEmail = isAdmin ? 'admin@admin.es' : isProfessor ? 'luis.garcia@profesor.edem.es' : 'paco.perez@edem.es';
+    const newLinkedin = isAdmin ? 'linkedin.com/in/edem' : isProfessor ? 'linkedin.com/in/luis-garcia' : 'linkedin.com/in/paco-perez';
+    setEmail(newEmail);
+    setLinkedin(newLinkedin);
+    setTmpEmail(newEmail);
+    setTmpLinkedin(newLinkedin);
+  }, [isAdmin, isProfessor]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -284,6 +308,16 @@ export function ProfileScreen() {
               style={{ fontWeight: 600 }}
             >
               📚 Mis Cursos
+            </button>
+          </div>
+        ) : isProfessor ? (
+          <div className="pt-2 grid grid-cols-1 gap-3">
+            <button
+              onClick={() => navigate('/teacher/grades')}
+              className="bg-[#008899] text-white py-3 rounded-2xl text-sm w-full hover:bg-[#007788] transition-colors"
+              style={{ fontWeight: 600 }}
+            >
+              👨‍🎓 Calificar Alumnos
             </button>
           </div>
         ) : (

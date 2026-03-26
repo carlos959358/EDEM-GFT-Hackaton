@@ -11,8 +11,10 @@ import { NotificationsScreen } from './components/NotificationsScreen';
 import { CoursesScreen } from './components/CoursesScreen';
 import { CourseDetailScreen } from './components/CourseDetailScreen';
 import { GradingScreen } from './components/GradingScreen';
+import { TeacherGradesScreen } from './components/TeacherGradesScreen';
 import { ClassAttendanceScreen } from './components/ClassAttendanceScreen';
 import { Layout } from './components/Layout';
+
 
 export const router = createBrowserRouter([
   {
@@ -68,6 +70,10 @@ export const router = createBrowserRouter([
   {
     path: 'courses/:courseId/subjects/:subjectId/grade',
     Component: GradingScreen,
+  },
+  {
+    path: 'teacher/grades',
+    Component: TeacherGradesScreen
   },
   {
     path: 'class/:classId/attendance',
