@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ChevronLeft, BookOpen, FileText, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronLeft, BookOpen, FileText, AlertCircle, Plus, X } from 'lucide-react';
 import { useNavigate } from 'react-router';
 
 type ViewMode = 'semana' | 'jus' | 'dia' | 'mes';
@@ -115,6 +115,19 @@ export function CalendarScreen() {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<ViewMode>('semana');
   const [selectedDayIdx, setSelectedDayIdx] = useState(2); // MIÉ 25 (hoy)
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  const [events, setEvents] = useState<CalEvent[]>(allEvents);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newEvent, setNewEvent] = useState<Partial<CalEvent>>({ type: 'examen', subject: '', day: 2, startHour: 10, endHour: 12 });
+  const [selectedEvent, setSelectedEvent] = useState<CalEvent | null>(null);
+
+  useEffect(() => {
+    setUserRole(localStorage.getItem('userRole'));
+  }, []);
+
+  const isProfessor = userRole === 'professor';
+  const isStudent = userRole === 'student';
 
   const hours = Array.from({ length: 12 }, (_, i) => i + START_HOUR); // 8–19
 
@@ -128,9 +141,9 @@ export function CalendarScreen() {
 
   // Which events to show
   const getDisplayEvents = (): CalEvent[] => {
-    if (viewMode === 'semana') return allEvents.filter(e => e.day <= 4);
-    if (viewMode === 'jus')    return allEvents.filter(e => e.day >= 3);
-    if (viewMode === 'dia')    return allEvents.filter(e => e.day === selectedDayIdx);
+    if (viewMode === 'semana') return events.filter(e => e.day <= 4);
+    if (viewMode === 'jus')    return events.filter(e => e.day >= 3);
+    if (viewMode === 'dia')    return events.filter(e => e.day === selectedDayIdx);
     return [];
   };
 
@@ -256,7 +269,11 @@ export function CalendarScreen() {
               ].map((item, i) => {
                 const Icon = EVENT_ICONS[item.type];
                 return (
-                  <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-2">
+                  <div
+                    key={i}
+                    onClick={() => isStudent && setSelectedEvent({ id: 999+i, type: item.type, subject: item.text, day: -1, startHour: 0, endHour: 0 })}
+                    className={`flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-2 ${isStudent ? 'cursor-pointer hover:bg-gray-100 transition-colors' : ''}`}
+                  >
                     <div className={`p-1.5 rounded-lg ${EVENT_STYLES[item.type].bg}`}>
                       <Icon size={14} className="text-white" />
                     </div>
@@ -375,7 +392,8 @@ export function CalendarScreen() {
                     return (
                       <div
                         key={event.id}
-                        className={`absolute rounded-lg px-1.5 py-1 overflow-hidden ${styles.bg} ${styles.text}`}
+                        onClick={() => isStudent && setSelectedEvent(event)}
+                        className={`absolute rounded-lg px-1.5 py-1 overflow-hidden shadow-sm ${isStudent ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''} ${styles.bg} ${styles.text}`}
                         style={{
                           top:    `${top + 1}px`,
                           left:   `calc(${colIdx * colW}% + 2px)`,
@@ -408,6 +426,164 @@ export function CalendarScreen() {
           </div>
         )}
       </div>
+
+      {/* Add event button for professors */}
+      {isProfessor && (
+        <button
+          onClick={() => setIsAddModalOpen(true)}
+          className="fixed bottom-24 right-6 w-14 h-14 bg-[#008899] rounded-full flex items-center justify-center text-white shadow-lg hover:bg-[#007788] transition-colors z-40"
+        >
+          <Plus size={28} />
+        </button>
+      )}
+
+      {/* Add Event Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
+            <h3 className="text-lg font-bold text-[#008899] mb-4">Añadir Nuevo Evento</h3>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Tipo</label>
+                <select
+                  value={newEvent.type}
+                  onChange={e => setNewEvent({...newEvent, type: e.target.value as EventType})}
+                  className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:border-[#008899]"
+                >
+                  <option value="entrega">Entrega</option>
+                  <option value="examen">Examen</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Asignatura / Título</label>
+                <input
+                  type="text"
+                  value={newEvent.subject}
+                  onChange={e => setNewEvent({...newEvent, subject: e.target.value})}
+                  placeholder="Ej. Examen de Finanzas"
+                  className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:border-[#008899]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Día de la semana</label>
+                <select
+                  value={newEvent.day}
+                  onChange={e => setNewEvent({...newEvent, day: parseInt(e.target.value)})}
+                  className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:border-[#008899]"
+                >
+                  {weekDays.map((d, i) => (
+                    <option key={i} value={i}>{d.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-500 mb-1">Hora Inicio</label>
+                  <select
+                    value={newEvent.startHour}
+                    onChange={e => setNewEvent({...newEvent, startHour: parseInt(e.target.value)})}
+                    className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:border-[#008899]"
+                  >
+                    {hours.map(h => (
+                      <option key={h} value={h}>{h}:00</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-500 mb-1">Hora Fin</label>
+                  <select
+                    value={newEvent.endHour}
+                    onChange={e => setNewEvent({...newEvent, endHour: parseInt(e.target.value)})}
+                    className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:border-[#008899]"
+                  >
+                    {hours.map(h => (
+                      <option key={h} value={h}>{h}:00</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setIsAddModalOpen(false)}
+                className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm font-semibold hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  if (!newEvent.subject) return;
+                  setEvents([...events, { id: Date.now(), ...newEvent } as CalEvent]);
+                  setIsAddModalOpen(false);
+                  setNewEvent({ type: 'examen', subject: '', day: 2, startHour: 10, endHour: 12 });
+                }}
+                className="flex-1 py-2 rounded-lg bg-[#008899] text-white text-sm font-semibold hover:bg-[#007788]"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Event Details Modal */}
+      {selectedEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={() => setSelectedEvent(null)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm relative" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setSelectedEvent(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <X size={20} />
+            </button>
+            
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`p-2 rounded-lg ${EVENT_STYLES[selectedEvent.type].bg}`}>
+                {(() => {
+                  const Icon = EVENT_ICONS[selectedEvent.type];
+                  return <Icon size={20} className="text-white" />;
+                })()}
+              </div>
+              <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                {selectedEvent.type}
+              </span>
+            </div>
+            
+            <h3 className="text-xl font-bold text-[#008899] mb-4 leading-tight">{selectedEvent.subject}</h3>
+            
+            <div className="bg-gray-50 rounded-xl p-4 space-y-3 mb-6">
+              <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                <span className="text-sm text-gray-500">Día</span>
+                <span className="text-sm font-semibold text-gray-800">
+                  {selectedEvent.day >= 0 && selectedEvent.day < weekDays.length 
+                    ? weekDays[selectedEvent.day].label 
+                    : 'Próximamente'}
+                </span>
+              </div>
+              {selectedEvent.day !== -1 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-500">Horario</span>
+                  <span className="text-sm font-semibold text-gray-800">
+                    {formatHour(selectedEvent.startHour)} - {formatHour(selectedEvent.endHour)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setSelectedEvent(null)}
+              className="w-full py-3 rounded-xl bg-[#008899] text-white text-sm font-semibold hover:bg-[#007788] transition-colors"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

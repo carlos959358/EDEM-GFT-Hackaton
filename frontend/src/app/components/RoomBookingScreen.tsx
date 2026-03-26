@@ -1,6 +1,15 @@
+import { useEffect, useState } from 'react';
 import { Search, ChevronDown } from 'lucide-react';
 
 export function RoomBookingScreen() {
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUserRole(localStorage.getItem('userRole'));
+  }, []);
+
+  const isProfessor = userRole === 'professor';
+
   return (
     <div className="min-h-screen bg-[#008899] pb-20">
       {/* Header */}
@@ -13,7 +22,9 @@ export function RoomBookingScreen() {
 
       {/* Content */}
       <div className="bg-white rounded-t-3xl px-6 pt-6 pb-6">
-        <h2 className="text-[#008899] mb-6" style={{ fontWeight: 600 }}>Reserva de Salas (Nueva)</h2>
+        <h2 className="text-[#008899] mb-6" style={{ fontWeight: 600 }}>
+          {isProfessor ? 'Reservar Sala para Tutorías' : 'Reserva de Salas'}
+        </h2>
 
         {/* Search Bar */}
         <div className="relative mb-6">
