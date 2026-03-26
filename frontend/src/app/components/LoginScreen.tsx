@@ -5,10 +5,19 @@ import { useNavigate } from 'react-router';
 export function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [email, setEmail] = useState('');
   const navigate = useNavigate();
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    // Mock role detection based on email
+    if (email.includes('admin')) {
+      localStorage.setItem('userRole', 'admin');
+    } else if (email.includes('profesor')) {
+      localStorage.setItem('userRole', 'professor');
+    } else {
+      localStorage.setItem('userRole', 'student');
+    }
     navigate('/dashboard');
   };
 
@@ -28,6 +37,8 @@ export function LoginScreen() {
             <input
               type="email"
               placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 border-b-2 border-gray-300 bg-transparent focus:outline-none focus:border-[#008899] placeholder:text-gray-400"
             />
           </div>
