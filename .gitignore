@@ -41,3 +41,5 @@ spa-datajuniorsprogram-sdb-001-899009cc32ac.json
 *.tfplan
 .terraform.lock.hcl
 *.tfvars
+
+key.json
