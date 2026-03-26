@@ -1,28 +1,15 @@
 import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { login } from '../api';
 
 export function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      const tokenResponse = await login(email, password);
-      localStorage.setItem('authToken', tokenResponse.access_token);
-      navigate('/dashboard');
-    } catch (err) {
-      setError('Email o contraseña incorrectos. Por favor, inténtalo de nuevo.');
-      setLoading(false);
     // Mock role detection based on email
     if (email.includes('admin')) {
       localStorage.setItem('userRole', 'admin');
@@ -31,6 +18,7 @@ export function LoginScreen() {
     } else {
       localStorage.setItem('userRole', 'student');
     }
+    navigate('/dashboard');
   };
 
   return (
@@ -71,12 +59,6 @@ export function LoginScreen() {
             </button>
           </div>
 
-          {/* Error Message */}
-          {error && (
-            <div className="text-red-600 text-sm text-center py-2">
-              {error}
-            </div>
-          )}
           {/* Remember Me Toggle */}
           <div className="flex items-center justify-between py-2">
             <span className="text-sm text-gray-600">Recordarme</span>
@@ -98,10 +80,9 @@ export function LoginScreen() {
           {/* Login Button */}
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-[#008899] text-white py-3 rounded-lg mt-6 hover:bg-[#007788] transition-colors disabled:bg-gray-400"
+            className="w-full bg-[#008899] text-white py-3 rounded-lg mt-6 hover:bg-[#007788] transition-colors"
           >
-            {loading ? 'Iniciando sesión...' : 'Login'}
+            Login
           </button>
         </form>
       </div>
