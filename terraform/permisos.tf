@@ -37,3 +37,17 @@ resource "google_project_iam_member" "cicd_cloudrun" {
   role    = "roles/run.developer"
   member  = "serviceAccount:${var.cicd_sa_email}"
 }
+
+# CI/CD SA → act as backend SA (needed to deploy Cloud Run with that SA)
+resource "google_service_account_iam_member" "cicd_actAs_backend" {
+  service_account_id = google_service_account.backend_sa.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${var.cicd_sa_email}"
+}
+
+# CI/CD SA → act as frontend SA (needed to deploy Cloud Run with that SA)
+resource "google_service_account_iam_member" "cicd_actAs_frontend" {
+  service_account_id = google_service_account.frontend_sa.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${var.cicd_sa_email}"
+}

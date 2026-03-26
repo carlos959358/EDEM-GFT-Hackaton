@@ -274,7 +274,7 @@ export function CalendarScreen() {
                 return (
                   <div
                     key={i}
-                    onClick={() => isStudent && setSelectedEvent({ id: 999+i, type: item.type, subject: item.text, day: -1, startHour: 0, endHour: 0 })}
+                    onClick={() => isStudent && setSelectedEvent({ id: 999+i, subjectCode: '', type: item.type, subject: item.text, day: -1, startHour: 0, endHour: 0 })}
                     className={`flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-2 ${isStudent ? 'cursor-pointer hover:bg-gray-100 transition-colors' : ''}`}
                   >
                     <div className={`p-1.5 rounded-lg ${EVENT_STYLES[item.type].bg}`}>
@@ -389,15 +389,22 @@ export function CalendarScreen() {
                     const height  = Math.max((event.endHour - event.startHour) * HOUR_HEIGHT - 3, 22);
                     const Icon    = EVENT_ICONS[event.type];
                     const styles  = EVENT_STYLES[event.type];
-                    const isClickable = isCoordinator && event.type === 'clase';
+                    const isClickableForCoordinator = isCoordinator && event.type === 'clase';
 
-                    const EventComponent = isClickable ? 'button' : 'div';
+                    const EventComponent = isClickableForCoordinator ? 'button' : 'div';
 
                     return (
                       <EventComponent
                         key={event.id}
-                        onClick={() => isStudent && setSelectedEvent(event)}
-                        className={`absolute rounded-lg px-1.5 py-1 overflow-hidden shadow-sm ${isStudent ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''} ${styles.bg} ${styles.text}`}
+                        onClick={() => {
+                          if (isClickableForCoordinator) {
+                            navigate(`/class/${event.subjectCode}/attendance`);
+                          } else if (isStudent) {
+                            setSelectedEvent(event);
+                          }
+                        }}
+                        className={`absolute rounded-lg px-1.5 py-1 overflow-hidden shadow-sm text-left ${styles.bg} ${styles.text} ${
+                          (isClickableForCoordinator || isStudent) ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
                         style={{
                           top:    `${top + 1}px`,
                           left:   `calc(${colIdx * colW}% + 2px)`,
@@ -433,8 +440,8 @@ export function CalendarScreen() {
         )}
       </div>
 
-      {/* Add event button for professors */}
-      {isProfessor && (
+      {/* Add event button for professors and coordinators */}
+      {(isProfessor || isCoordinator) && (
         <button
           onClick={() => setIsAddModalOpen(true)}
           className="fixed bottom-24 right-6 w-14 h-14 bg-[#008899] rounded-full flex items-center justify-center text-white shadow-lg hover:bg-[#007788] transition-colors z-40"
@@ -457,6 +464,7 @@ export function CalendarScreen() {
                   onChange={e => setNewEvent({...newEvent, type: e.target.value as EventType})}
                   className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:border-[#008899]"
                 >
+                  {isCoordinator && <option value="clase">Clase</option>}
                   <option value="entrega">Entrega</option>
                   <option value="examen">Examen</option>
                 </select>

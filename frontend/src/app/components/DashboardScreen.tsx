@@ -1,16 +1,32 @@
+import { useState, useEffect } from 'react';
 import { Bell } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { fetchMyGrades, fetchAttendanceMetrics, type AttendanceMetrics } from '../api';
 
 export function DashboardScreen() {
   const navigate = useNavigate();
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [gradeAvg, setGradeAvg] = useState<string>('7.83');
+  const [attendancePct, setAttendancePct] = useState<string>('89%');
 
   useEffect(() => {
-    // On component mount, check the role from localStorage
-    setUserRole(localStorage.getItem('userRole'));
+    // Cargar media de notas
+    fetchMyGrades()
+      .then((grades) => {
+        if (grades.length > 0) {
+          const avg = grades.reduce((sum, g) => sum + g.nota, 0) / grades.length;
+          setGradeAvg(avg.toFixed(2));
+        }
+      })
+      .catch((err) => console.warn('Error cargando notas para dashboard:', err));
+
+    // Cargar métricas de asistencia
+    fetchAttendanceMetrics()
+      .then((metrics: AttendanceMetrics) => {
+        setAttendancePct(`${Math.round(metrics.porcentaje_asistencia)}%`);
+      })
+      .catch((err) => console.warn('Error cargando asistencia para dashboard:', err));
   }, []);
-  
+
   return (
     <div className="min-h-screen bg-[#f5f5f5] pb-20">
       {/* Header */}
@@ -64,26 +80,24 @@ export function DashboardScreen() {
         </div>
 
         {/* Notas & Asistencia */}
-        {userRole === 'student' && (
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div
-              className="bg-white rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => navigate('/grades')}
-            >
-              <h3 className="text-[#008899] mb-1" style={{ fontWeight: 600 }}>MIS NOTAS</h3>
-              <p className="text-gray-500 text-xs">Media: 7.83</p>
-              <p className="text-2xl mt-1" style={{ fontWeight: 800, color: '#008899' }}>📊</p>
-            </div>
-            <div
-              className="bg-white rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => navigate('/attendance')}
-            >
-              <h3 className="text-[#008899] mb-1" style={{ fontWeight: 600 }}>ASISTENCIA</h3>
-              <p className="text-gray-500 text-xs">Global: 89%</p>
-              <p className="text-2xl mt-1" style={{ fontWeight: 800, color: '#008899' }}>📋</p>
-            </div>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div
+            className="bg-white rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => navigate('/grades')}
+          >
+            <h3 className="text-[#008899] mb-1" style={{ fontWeight: 600 }}>MIS NOTAS</h3>
+            <p className="text-gray-500 text-xs">Media: {gradeAvg}</p>
+            <p className="text-2xl mt-1" style={{ fontWeight: 800, color: '#008899' }}>📊</p>
           </div>
-        )}
+          <div
+            className="bg-white rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => navigate('/attendance')}
+          >
+            <h3 className="text-[#008899] mb-1" style={{ fontWeight: 600 }}>ASISTENCIA</h3>
+            <p className="text-gray-500 text-xs">Global: {attendancePct}</p>
+            <p className="text-2xl mt-1" style={{ fontWeight: 800, color: '#008899' }}>📋</p>
+          </div>
+        </div>
       </div>
     </div>
   );

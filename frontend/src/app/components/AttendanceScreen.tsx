@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { ChevronLeft, CheckCircle, XCircle, Clock, Users } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import { fetchMyAttendance, fetchAttendanceMetrics, type AttendanceRecord as APIAttendance, type AttendanceMetrics } from '../api';
 
 interface AttendanceRecord {
   name: string;
@@ -9,7 +11,8 @@ interface AttendanceRecord {
   lastAbsence?: string;
 }
 
-const records: AttendanceRecord[] = [
+// Datos mock de fallback
+const MOCK_RECORDS: AttendanceRecord[] = [
   { name: 'Big Data & Analytics',   code: 'BDA-301', attended: 18, total: 20, lastAbsence: '10 Mar' },
   { name: 'Marketing Digital',      code: 'MKT-201', attended: 17, total: 20, lastAbsence: '17 Mar' },
   { name: 'Finanzas Corporativas',  code: 'FIN-302', attended: 15, total: 15 },
@@ -18,9 +21,30 @@ const records: AttendanceRecord[] = [
   { name: 'Coaching y Liderazgo',   code: 'COA-201', attended: 14, total: 16, lastAbsence: '20 Mar' },
 ];
 
-const overallAttended = records.reduce((a, r) => a + r.attended, 0);
-const overallTotal    = records.reduce((a, r) => a + r.total, 0);
-const overallPct      = Math.round((overallAttended / overallTotal) * 100);
+// Transforma datos del API a la estructura del componente
+function apiToRecords(data: APIAttendance[]): AttendanceRecord[] {
+  const grouped: Record<string, { attended: number; total: number; lastAbsence?: string }> = {};
+
+  for (const r of data) {
+    if (!grouped[r.id_asignatura]) {
+      grouped[r.id_asignatura] = { attended: 0, total: 0 };
+    }
+    grouped[r.id_asignatura].total++;
+    if (r.presente) {
+      grouped[r.id_asignatura].attended++;
+    } else {
+      grouped[r.id_asignatura].lastAbsence = r.fecha;
+    }
+  }
+
+  return Object.entries(grouped).map(([code, stats]) => ({
+    name: code,
+    code,
+    attended: stats.attended,
+    total: stats.total,
+    lastAbsence: stats.lastAbsence,
+  }));
+}
 
 const getStatus = (pct: number) => {
   if (pct >= 90) return { label: 'Excelente',  color: 'text-green-600',  bg: 'bg-green-50',  bar: 'bg-green-500'  };
@@ -54,6 +78,38 @@ function RingChart({ pct, size = 56 }: { pct: number; size?: number }) {
 
 export function AttendanceScreen() {
   const navigate = useNavigate();
+  const [records, setRecords] = useState<AttendanceRecord[]>(MOCK_RECORDS);
+  const [metrics, setMetrics] = useState<AttendanceMetrics | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([fetchMyAttendance(), fetchAttendanceMetrics()])
+      .then(([attendanceData, metricsData]) => {
+        if (attendanceData.length > 0) {
+          setRecords(apiToRecords(attendanceData));
+        }
+        setMetrics(metricsData);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.warn('No se pudo cargar asistencia del API, usando datos mock:', err);
+        setLoading(false);
+      });
+  }, []);
+
+  const overallAttended = metrics?.clases_asistidas ?? records.reduce((a, r) => a + r.attended, 0);
+  const overallTotal    = metrics?.total_clases ?? records.reduce((a, r) => a + r.total, 0);
+  const overallPct      = metrics?.porcentaje_asistencia ?? Math.round((overallAttended / overallTotal) * 100);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#008899] flex items-center justify-center">
+        <div className="animate-pulse text-white text-lg" style={{ fontWeight: 600 }}>
+          Cargando asistencia...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#008899] pb-20">
@@ -169,7 +225,7 @@ export function AttendanceScreen() {
             <div>
               <p className="text-amber-700 text-sm" style={{ fontWeight: 600 }}>Atención</p>
               <p className="text-amber-600 text-xs mt-0.5">
-                Estrategia Empresarial está por debajo del 80% mínimo requerido. Contacta con tu tutor.
+                Hay asignaturas por debajo del 80% mínimo requerido. Contacta con tu tutor.
               </p>
             </div>
           </div>

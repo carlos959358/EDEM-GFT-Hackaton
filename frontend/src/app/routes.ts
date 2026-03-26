@@ -73,7 +73,9 @@ export const router = createBrowserRouter([
   },
   {
     path: 'teacher/grades',
-    Component: TeacherGradesScreen,
+    Component: TeacherGradesScreen
+  },
+  {
     path: 'class/:classId/attendance',
     Component: ClassAttendanceScreen,
   },
