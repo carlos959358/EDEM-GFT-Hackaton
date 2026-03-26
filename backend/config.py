@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     DB_PASSWORD: str = os.getenv("DB_PASSWORD", "")
     DB_HOST: str = os.getenv("DB_HOST", "localhost")
     DB_PORT: int = int(os.getenv("DB_PORT", "5432"))
-    DB_NAME: str = os.getenv("DB_NAME", "universidad_db")
+    DB_NAME: str = os.getenv("DB_NAME", "edem_hub_db")
     
     # Configuración de Cloud SQL (si se usa Cloud SQL Proxy)
     CLOUD_SQL_CONNECTION_NAME: Optional[str] = os.getenv("CLOUD_SQL_CONNECTION_NAME")
@@ -45,7 +45,7 @@ class Settings(BaseSettings):
         if self.CLOUD_SQL_CONNECTION_NAME:
             # Format: /cloudsql/PROJECT:REGION:INSTANCE
             # Ejemplo: /cloudsql/my-project:us-central1:my-instance
-            return f"postgresql+psycopg2://{self.DB_USER}:{self.DB_PASSWORD}@/{self.DB_NAME}?host={self.CLOUD_SQL_CONNECTION_NAME}"
+            return f"postgresql+psycopg2://{self.DB_USER}:{self.DB_PASSWORD}@/{self.DB_NAME}?host=/{self.CLOUD_SQL_CONNECTION_NAME}"
         
         # Modo 2: Conexión directa por host/puerto (desarrollo local o IP pública)
         return f"postgresql+psycopg2://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
