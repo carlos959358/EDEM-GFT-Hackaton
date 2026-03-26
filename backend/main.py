@@ -63,9 +63,9 @@ class ProfileUpdate(BaseModel):
 # ==========================================
 # SIMULACIÓN: Esta función simularía extraer el ID del usuario desde el JWT Token
 def get_current_user_id():
-    # Para probar la API, devolvemos un ID fijo. 
+    # Para probar la API, devolvemos un ID fijo que EXISTE en la BD. 
     # En producción, esto leería el header 'Authorization: Bearer <token>'
-    return "A001" 
+    return "ALU-001"  # Ahsoka Tano - usuario que existe realmente 
 
 # Función vital: Como tienes 3 tablas separadas, buscamos al usuario en todas
 def buscar_usuario(db: Session, user_id: str):
