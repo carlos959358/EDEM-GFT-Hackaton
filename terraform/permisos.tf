@@ -17,6 +17,13 @@ resource "google_project_iam_member" "backend_cloudsql" {
   member  = "serviceAccount:${google_service_account.backend_sa.email}"
 }
 
+# Backend SA → Firestore access (for notifications)
+resource "google_project_iam_member" "backend_firestore" {
+  project = var.project_id
+  role    = "roles/datastore.user"
+  member  = "serviceAccount:${google_service_account.backend_sa.email}"
+}
+
 # Firestore SA → Firestore access
 resource "google_project_iam_member" "firestore_access" {
   project = var.project_id
