@@ -148,20 +148,27 @@ async def login_for_access_token(db: Session = Depends(get_db), form_data: OAuth
     """
     error = HTTPException(status_code=401, detail="Correo o contraseña incorrectos", headers={"WWW-Authenticate": "Bearer"})
 
+    def check_password(stored: str, provided: str) -> bool:
+        if not stored:
+            return False
+        if stored.startswith("$2b$") or stored.startswith("$2a$"):
+            return pwd_context.verify(provided, stored)
+        return stored == provided  # plain text fallback (pre-migration)
+
     alumno = db.query(Alumno).filter(Alumno.correo == form_data.username).first()
     if alumno:
-        if alumno.contrasena != form_data.password:
+        if not check_password(alumno.contrasena, form_data.password):
             raise error
         user_id = alumno.id_alumno
     else:
         profesor = db.query(Profesor).filter(Profesor.correo == form_data.username).first()
         if profesor:
-            if profesor.contrasena != form_data.password:
+            if not check_password(profesor.contrasena, form_data.password):
                 raise error
             user_id = profesor.id_profesor
         else:
             personal = db.query(PersonalEdem).filter(PersonalEdem.correo == form_data.username).first()
-            if not personal or personal.contrasena != form_data.password:
+            if not personal or not check_password(personal.contrasena, form_data.password):
                 raise error
             user_id = personal.id_personal
 
