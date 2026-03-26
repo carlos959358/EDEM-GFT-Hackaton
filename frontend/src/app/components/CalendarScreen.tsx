@@ -440,8 +440,8 @@ export function CalendarScreen() {
         )}
       </div>
 
-      {/* Add event button for professors */}
-      {isProfessor && (
+      {/* Add event button for professors and coordinators */}
+      {(isProfessor || isCoordinator) && (
         <button
           onClick={() => setIsAddModalOpen(true)}
           className="fixed bottom-24 right-6 w-14 h-14 bg-[#008899] rounded-full flex items-center justify-center text-white shadow-lg hover:bg-[#007788] transition-colors z-40"
@@ -464,6 +464,7 @@ export function CalendarScreen() {
                   onChange={e => setNewEvent({...newEvent, type: e.target.value as EventType})}
                   className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:border-[#008899]"
                 >
+                  {isCoordinator && <option value="clase">Clase</option>}
                   <option value="entrega">Entrega</option>
                   <option value="examen">Examen</option>
                 </select>
