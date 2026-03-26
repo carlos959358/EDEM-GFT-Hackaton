@@ -23,3 +23,17 @@ resource "google_project_iam_member" "firestore_access" {
   role    = "roles/datastore.user"
   member  = "serviceAccount:${google_service_account.firestore_sa.email}"
 }
+
+# CI/CD SA → Artifact Registry push
+resource "google_project_iam_member" "cicd_artifact_registry" {
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${var.cicd_sa_email}"
+}
+
+# CI/CD SA → Cloud Run deploy
+resource "google_project_iam_member" "cicd_cloudrun" {
+  project = var.project_id
+  role    = "roles/run.developer"
+  member  = "serviceAccount:${var.cicd_sa_email}"
+}
